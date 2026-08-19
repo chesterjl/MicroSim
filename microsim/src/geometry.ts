@@ -2,10 +2,6 @@ import { GRID } from "./types/types";
 import type { PartInstance, ResolvedPin } from "./types/types";
 import { partDefinitions } from "./partDefinitions";
 
-/**
- * Rotate a point (in grid units) around the origin by 0/90/180/270 degrees.
- * We rotate in grid-unit space (not px) so it stays exact.
- */
 function rotatePoint(x: number, y: number, rotation: 0 | 90 | 180 | 270) {
   switch (rotation) {
     case 0:
@@ -19,7 +15,6 @@ function rotatePoint(x: number, y: number, rotation: 0 | 90 | 180 | 270) {
   }
 }
 
-/** Absolute canvas (px) positions of every pin on a part instance. */
 export function getResolvedPins(part: PartInstance): ResolvedPin[] {
   const def = partDefinitions[part.type];
   if (!def) return [];
@@ -36,28 +31,32 @@ export function getResolvedPins(part: PartInstance): ResolvedPin[] {
   });
 }
 
-/** Find the pin nearest to a canvas point, within a max distance (px). Used for click-to-wire. */
-export function findNearestPin(
-  parts: PartInstance[],
-  point: { x: number; y: number },
-  maxDist = 12
-): ResolvedPin | null {
-  let closest: ResolvedPin | null = null;
-  let closestDist = maxDist;
-
-  for (const part of parts) {
-    for (const pin of getResolvedPins(part)) {
-      const d = Math.hypot(pin.x - point.x, pin.y - point.y);
-      if (d < closestDist) {
-        closest = pin;
-        closestDist = d;
-      }
-    }
-  }
-  return closest;
-}
-
-/** Snap a raw canvas coordinate to the nearest grid intersection. */
 export function snapToGrid(value: number): number {
   return Math.round(value / GRID) * GRID;
+}
+
+export function buildOrthogonalPath(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  waypoints: { x: number; y: number }[] = []
+): string {
+  const points = [from, ...waypoints, to];
+  if (points.length < 2) return "";
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+
+    if (curr.x === next.x && curr.y === next.y) continue;
+
+    if (curr.x === next.x || curr.y === next.y) {
+      path += ` L ${next.x} ${next.y}`;
+    } else {
+      path += ` L ${next.x} ${curr.y} L ${next.x} ${next.y}`;
+    }
+  }
+
+  return path;
 }

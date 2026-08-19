@@ -10,15 +10,7 @@ import { GRID, type PartInstance, type PinRef } from "../types/types";
 const VIEW_WIDTH = 1200;
 const VIEW_HEIGHT = 800;
 
-const HAS_PROPERTIES_TYPES = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04"];
-
-// How close (in SVG px) a component's pin has to land next to a breadboard
-// hole on drop before it "plugs in" and auto-wires to it.
-// CHANGED: bumped 12 -> 16. The LED's footprint shrank a lot (widthUnits
-// 2, heightUnits 3), so its legs are close together and easy to miss the
-// old, tighter threshold entirely -- a dropped-but-not-quite-close-enough
-// pin just silently never gets a wire, which is exactly what "doesn't
-// attach, no green dot" looks like.
+const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04"];
 const SNAP_DISTANCE = 16;
 
 function isBreadboard(type: string) {
@@ -52,10 +44,13 @@ export function CircuitCanvas({
   const digitalPins = useCircuitStore((s) => s.digitalPins);
   const selectedPartId = useCircuitStore((s) => s.selectedPartId);
   const pendingWireStart = useCircuitStore((s) => s.pendingWireStart);
+  const draftWaypoints = useCircuitStore((s) => s.draftWaypoints);
+  
   const movePart = useCircuitStore((s) => s.movePart);
   const selectPart = useCircuitStore((s) => s.selectPart);
   const deletePart = useCircuitStore((s) => s.deletePart);
   const startWire = useCircuitStore((s) => s.startWire);
+  const addWaypoint = useCircuitStore((s) => s.addWaypoint);
   const finishWire = useCircuitStore((s) => s.finishWire);
   const cancelWire = useCircuitStore((s) => s.cancelWire);
   const deleteWire = useCircuitStore((s) => s.deleteWire);
@@ -76,6 +71,11 @@ export function CircuitCanvas({
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && pendingWireStart) {
+        cancelWire();
+        return;
+      }
+
       const activeEl = document.activeElement;
       const isTyping =
         activeEl?.tagName === "INPUT" ||
@@ -90,7 +90,7 @@ export function CircuitCanvas({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPartId, deletePart]);
+  }, [selectedPartId, deletePart, pendingWireStart, cancelWire]);
 
   function toSvgPoint(e: React.MouseEvent | MouseEvent) {
     const svg = svgRef.current;
@@ -105,11 +105,11 @@ export function CircuitCanvas({
   }
 
   function handlePartMouseDown(e: React.MouseEvent, partId: string) {
+    if (pendingWireStart) return;
     e.stopPropagation();
     if (e.button !== 0) return;
 
     selectPart(partId);
-
     if (isSimulating) return;
 
     const part = parts.find((p) => p.id === partId);
@@ -155,17 +155,6 @@ export function CircuitCanvas({
     );
   }
 
-  /**
-   * Called when a drag ends. If the part that was just dropped has a pin
-   * close to a breadboard hole, snap the part so that pin lands exactly on
-   * the hole, then wire the two together -- mimics physically plugging a
-   * component's leg into a breadboard. If a part STILL doesn't connect
-   * after this runs, the most common cause is that its pin geometry in
-   * partDefinitions.ts changed since it was placed -- its stored x/y on
-   * the canvas doesn't retroactively follow a pin-position edit, so an
-   * older instance can end up sitting just outside SNAP_DISTANCE of any
-   * real hole. Deleting and re-dragging a fresh copy fixes that.
-   */
   function trySnapToBreadboard(partId: string) {
     const part = parts.find((p) => p.id === partId);
     if (!part || isBreadboard(part.type)) return;
@@ -193,9 +182,6 @@ export function CircuitCanvas({
     const newY = snapToGrid(part.y + dy);
     movePart(part.id, newX, newY);
 
-    // Re-resolve pins at the snapped position -- since parts share the same
-    // GRID pitch as the breadboard, other legs often land exactly on holes
-    // too (e.g. both legs of a resistor), so wire up every exact match.
     const snappedPins = getResolvedPins({ ...part, x: newX, y: newY });
     for (const pin of snappedPins) {
       for (const target of breadboardPins) {
@@ -229,10 +215,24 @@ export function CircuitCanvas({
     }
   }
 
-  function handleBackgroundClick() {
+  function handleBackgroundClick(e: React.MouseEvent) {
     if (isPanning) return;
+
+    if (pendingWireStart && cursor) {
+      e.stopPropagation();
+      const snappedPoint = { x: snapToGrid(cursor.x), y: snapToGrid(cursor.y) };
+      addWaypoint(snappedPoint);
+      return;
+    }
+
     selectPart(null);
-    if (pendingWireStart) cancelWire();
+  }
+
+  function handleContextMenu(e: React.MouseEvent) {
+    if (pendingWireStart) {
+      e.preventDefault();
+      cancelWire();
+    }
   }
 
   const selectedPart = parts.find((p) => p.id === selectedPartId);
@@ -244,6 +244,20 @@ export function CircuitCanvas({
 
   const breadboardParts = parts.filter((p) => isBreadboard(p.type));
   const otherParts = parts.filter((p) => !isBreadboard(p.type));
+
+  const draftWireData = useMemo(() => {
+    if (!pendingWireStart || !cursor) return null;
+    const startPart = parts.find((p) => p.id === pendingWireStart.partId);
+    if (!startPart) return null;
+    const startPin = getResolvedPins(startPart).find((p) => p.pinId === pendingWireStart.pinId);
+    if (!startPin) return null;
+
+    return {
+      from: { x: startPin.x, y: startPin.y },
+      to: cursor,
+      waypoints: draftWaypoints,
+    };
+  }, [pendingWireStart, cursor, parts, draftWaypoints]);
 
   function renderPart(part: PartInstance) {
     const Component = partComponentRegistry[part.type];
@@ -271,7 +285,7 @@ export function CircuitCanvas({
           onToggle={part.type === "pushbutton" ? togglePushbutton : undefined}
           pinStates={pinStates}
           netlist={netlist}
-          isSimulating={isSimulating} 
+          isSimulating={isSimulating}
           onPinClick={(pinId: string, e: React.MouseEvent) => handlePinClick(e, part.id, pinId)}
         />
       </g>
@@ -286,6 +300,7 @@ export function CircuitCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onContextMenu={handleContextMenu}
     >
       <div
         className="w-full h-full origin-center transition-transform duration-75 ease-out"
@@ -305,24 +320,18 @@ export function CircuitCanvas({
             </pattern>
           </defs>
 
-          {/* 1. Grid Background */}
           <rect width={VIEW_WIDTH} height={VIEW_HEIGHT} fill="url(#grid-dots)" />
 
-          {/* 2. Breadboards */}
           {breadboardParts.map(renderPart)}
-
-          {/* 3. Other components */}
           {otherParts.map(renderPart)}
 
-          {/* 4. Wiring Layer */}
-          <WireLayer parts={parts} wires={wires} onDeleteWire={deleteWire} />
+          <WireLayer
+            parts={parts}
+            wires={wires}
+            onDeleteWire={deleteWire}
+            draftWire={draftWireData}
+          />
 
-          {/* 5. Pending Wire Preview */}
-          {pendingWireStart && cursor && (
-            <PendingWirePreview parts={parts} startRef={pendingWireStart} cursor={cursor} />
-          )}
-
-          {/* 6. Selected Part Overlays */}
           {selectedPart && (
             <PartControlOverlay
               part={selectedPart}
@@ -351,7 +360,7 @@ function PartControlOverlay({
   const cx = part.x;
   const cy = part.y - (def.heightUnits / 2) * GRID - 20;
 
-  const hasProperties = HAS_PROPERTIES_TYPES.includes(part.type);
+  const hasProperties = HAS_MODAL_PROPERTIES_PART.includes(part.type);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -371,7 +380,6 @@ function PartControlOverlay({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Delete Button */}
       <g className="cursor-pointer hover:opacity-80 transition-opacity" onMouseDown={handleDelete} onClick={handleDelete}>
         <circle cx={hasProperties ? -14 : 0} cy={0} r={12} fill="#dc2626" stroke="#ffffff" strokeWidth={1.5} />
         <line
@@ -395,7 +403,6 @@ function PartControlOverlay({
         <title>Delete component</title>
       </g>
 
-      {/* Properties Button */}
       {hasProperties && (
         <g className="cursor-pointer hover:opacity-80 transition-opacity" onMouseDown={handleProperties} onClick={handleProperties}>
           <circle cx={14} cy={0} r={12} fill="#0284c7" stroke="#ffffff" strokeWidth={1.5} />
@@ -406,34 +413,5 @@ function PartControlOverlay({
         </g>
       )}
     </g>
-  );
-}
-
-function PendingWirePreview({
-  parts,
-  startRef,
-  cursor,
-}: {
-  parts: PartInstance[];
-  startRef: PinRef;
-  cursor: { x: number; y: number };
-}) {
-  const part = parts.find((p) => p.id === startRef.partId);
-  if (!part) return null;
-
-  const pin = getResolvedPins(part).find((p) => p.pinId === startRef.pinId);
-  if (!pin) return null;
-
-  return (
-    <line
-      x1={pin.x}
-      y1={pin.y}
-      x2={cursor.x}
-      y2={cursor.y}
-      stroke="#4da3ff"
-      strokeWidth={2.5}
-      strokeDasharray="4 3"
-      className="pointer-events-none"
-    />
   );
 }

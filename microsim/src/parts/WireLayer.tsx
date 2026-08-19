@@ -1,51 +1,98 @@
+import { useState } from "react";
 import type { PartInstance, Wire } from "../types/types";
-import { getResolvedPins } from "../geometry";
+import { getResolvedPins, buildOrthogonalPath } from "../geometry";
+import { WireModal } from "../components/parts/wire/WireModal";
 
 function resolvePinPosition(parts: PartInstance[], partId: string, pinId: string) {
   const part = parts.find((p) => p.id === partId);
   if (!part) return null;
   const resolvedPins = getResolvedPins(part);
-  const pin = resolvedPins.find(
-    (p: any) => p.pinId === pinId || p.id === pinId
-  );
+  const pin = resolvedPins.find((p: any) => p.pinId === pinId || p.id === pinId);
   return pin ? { x: pin.x, y: pin.y } : null;
 }
 
-export function WireLayer({
-  parts,
-  wires,
-  onDeleteWire,
-}: {
+interface DraftWire {
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  waypoints: { x: number; y: number }[];
+  color?: string;
+}
+
+interface WireLayerProps {
   parts: PartInstance[];
   wires: Wire[];
   onDeleteWire: (id: string) => void;
-}) {
+  draftWire?: DraftWire | null;
+}
+
+export function WireLayer({ parts, wires, onDeleteWire, draftWire }: WireLayerProps) {
+  const [selectedWire, setSelectedWire] = useState<Wire | null>(null);
+
   return (
-    <g>
-      {wires.map((wire) => {
-        const from = resolvePinPosition(parts, wire.from.partId, wire.from.pinId);
-        const to = resolvePinPosition(parts, wire.to.partId, wire.to.pinId);
-        if (!from || !to) return null;
+    <>
+      <g className="wire-layer">
+        {/* Render Saved Wires */}
+        {wires.map((wire) => {
+          const from = resolvePinPosition(parts, wire.from.partId, wire.from.pinId);
+          const to = resolvePinPosition(parts, wire.to.partId, wire.to.pinId);
+          if (!from || !to) return null;
 
-        const midX = (from.x + to.x) / 2;
-        const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
+          const wireColor = wire.color || "#22c55e";
+          const pathD = buildOrthogonalPath(from, to, wire.waypoints || []);
 
-        return (
+          return (
+            <g key={wire.id} className="group cursor-pointer">
+              {/* Invisible wide stroke for easier clicking */}
+              <path
+                d={pathD}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={14}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedWire(wire);
+                }}
+              />
+              {/* Visible wire path */}
+              <path
+                d={pathD}
+                fill="none"
+                stroke={wireColor}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="pointer-events-none transition-colors group-hover:stroke-sky-400"
+              />
+            </g>
+          );
+        })}
+
+        {/* Live Draft Wire following mouse cursor & waypoints */}
+        {draftWire && (
           <path
-            key={wire.id}
-            d={path}
+            d={buildOrthogonalPath(draftWire.from, draftWire.to, draftWire.waypoints)}
             fill="none"
-            stroke="#2ecc71"
+            stroke={draftWire.color || "#22c55e"}
             strokeWidth={3}
+            strokeDasharray="4 4"
             strokeLinecap="round"
-            style={{ cursor: "pointer" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteWire(wire.id);
-            }}
+            strokeLinejoin="round"
+            className="pointer-events-none animate-pulse"
           />
-        );
-      })}
-    </g>
+        )}
+      </g>
+
+      {/* Wire Configuration Modal */}
+      {selectedWire && (
+        <WireModal
+          wire={selectedWire}
+          onClose={() => setSelectedWire(null)}
+          onDeleteWire={(id) => {
+            onDeleteWire(id);
+            setSelectedWire(null);
+          }}
+        />
+      )}
+    </>
   );
 }

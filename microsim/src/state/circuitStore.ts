@@ -28,6 +28,7 @@ interface CircuitState {
   selectedPartId: string | null;
   pendingWireStart: PinRef | null;
   connectPins: (a: PinRef, b: PinRef) => void;
+  draftWaypoints: { x: number; y: number }[];
 
   code: string;
   running: boolean;
@@ -44,10 +45,12 @@ interface CircuitState {
   updatePartProperties: (id: string, patch: Record<string, unknown>) => void;
 
   startWire: (pin: PinRef) => void;
+  addWaypoint: (point: { x: number; y: number }) => void;
   finishWire: (pin: PinRef) => void;
   cancelWire: () => void;
   deleteWire: (id: string) => void;
   removeWiresForPart: (partId: string) => void;
+  updateWireColor: (id: string, color: string) => void;
 
   setCode: (code: string) => void;
   runSimulation: () => Promise<void>;
@@ -208,6 +211,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   wires: [],
   selectedPartId: null,
   pendingWireStart: null,
+  draftWaypoints: [],
   connectPins: (a, b) => {
     set((state) => ({
       wires: [...state.wires, { id: nanoid(6), from: a, to: b }],
@@ -263,22 +267,32 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     }));
   },
 
-  startWire: (pin) => set({ pendingWireStart: pin }),
+  startWire: (pin) => set({ pendingWireStart: pin, draftWaypoints: [] }),
+
+  addWaypoint: (point) =>
+    set((state) => ({
+      draftWaypoints: [...state.draftWaypoints, point],
+    })),
 
   finishWire: (pin) => {
-    const { pendingWireStart, wires } = get();
+    const { pendingWireStart, wires, draftWaypoints } = get();
     if (!pendingWireStart) return;
 
     if (pendingWireStart.partId === pin.partId && pendingWireStart.pinId === pin.pinId) {
-      set({ pendingWireStart: null });
+      set({ pendingWireStart: null, draftWaypoints: [] });
       return;
     }
 
-    const wire: Wire = { id: nanoid(6), from: pendingWireStart, to: pin };
-    set({ wires: [...wires, wire], pendingWireStart: null });
+    const wire: Wire = {
+      id: nanoid(6),
+      from: pendingWireStart,
+      to: pin,
+      waypoints: draftWaypoints,
+    };
+    set({ wires: [...wires, wire], pendingWireStart: null, draftWaypoints: [] });
   },
 
-  cancelWire: () => set({ pendingWireStart: null }),
+  cancelWire: () => set({ pendingWireStart: null, draftWaypoints: [] }),
 
   deleteWire: (id) => {
     set((state) => ({ wires: state.wires.filter((w) => w.id !== id) }));
@@ -289,6 +303,11 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       wires: state.wires.filter((w) => w.from.partId !== partId && w.to.partId !== partId),
     }));
   },
+
+  updateWireColor: (id, color) =>
+    set((state) => ({
+      wires: state.wires.map((w) => (w.id === id ? { ...w, color } : w)),
+    })),
 
   setCode: (code) => set({ code }),
 
