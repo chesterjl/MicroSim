@@ -73,6 +73,7 @@ export function PartsPalette() {
 
   return (
     <div ref={menuRef} className="relative">
+
       <button
         onClick={() => setIsOpen(!isOpen)}
         title="Add new component"
@@ -131,6 +132,7 @@ export function PartsPalette() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

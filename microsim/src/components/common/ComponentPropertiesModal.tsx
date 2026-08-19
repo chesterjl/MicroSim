@@ -26,7 +26,7 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
 
   const storeDistanceCm = (livePart?.properties?.distanceCm as number) ?? 50;
   const [localDistanceCm, setLocalDistanceCm] = useState<string>(String(storeDistanceCm));
-
+  
   useEffect(() => {
     setLocalResistance(String(storeResistance));
   }, [storeResistance]);

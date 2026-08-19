@@ -101,7 +101,7 @@ export function LandingPage({
             text="Write C++/Arduino sketches inside the embedded editor and simulate logic instantly."
           />
         </div>
-
+      
         {/* Microcontroller Selection Grid */}
         <div className="w-full">
           <div className="flex items-center justify-between mb-8">

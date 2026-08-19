@@ -43,7 +43,7 @@ npm run dev
 - `src/geometry.ts` — rotation-aware pin position math, grid snapping
 - `src/netlist.ts` — union-find netlist builder; resolves HIGH/LOW/floating
   per pin from wires + GND/power pins + Arduino output pins + button state
-- `src/interpreter.ts` — the Arduino-C++-subset parser and sketch runner
+- `src/interpreter.ts` — the Arduino-C++-subset parser and sketch runner and we passed the sketch.ino into backend to actual send the c++ logic for arduino code
 - `src/state/circuitStore.ts` — Zustand store: parts, wires, selection,
   in-progress wiring, sketch code, running state, digital pin states, console log
 - `src/CircuitCanvas.tsx` — SVG canvas: drag, pin click-to-wire, delete button, live pin coloring
@@ -70,10 +70,6 @@ void loop() {
   delay(10);
 }
 ```
-
-Unsupported statements (variables, `for`/`while`, `analogWrite`, `Serial.*`,
-nested `if`) are silently skipped rather than crashing the sketch — the
-parser is deliberately forgiving so partial/unusual code doesn't hard-fail.
 
 ## Next steps (in priority order)
 
