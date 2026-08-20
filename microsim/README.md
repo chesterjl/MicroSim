@@ -23,11 +23,7 @@ npm run dev
     Pushbutton) above an SVG circuit canvas with a pre-placed Arduino Uno.
 - **Wiring** — I can see the wiring when i click the led but it doesnt yet connect to the others parts
 - **Deleting parts** — select a part to reveal a red × button at its corner.
-- **Real simulation** — a small interpreter (`src/interpreter.ts`) parses a
-  supported subset of Arduino C++ (`pinMode`, `digitalWrite`, `delay`, and
-  one level of `if (digitalRead(pin) == HIGH/LOW) {...} else {...}`), runs
-  `setup()` once then loops `loop()`, and writes real pin states into the
-  store. A netlist engine (`src/netlist.ts`, union-find over wires + button
+- **Real simulation** — we pass the code in the backend in (`src/state/circuitStore.ts`) this file call the backend and it returns the response. A netlist engine (`src/netlist.ts`, union-find over wires + button
   internals) resolves every pin's live HIGH/LOW/floating state each render,
   so LEDs actually light up, and pin dots color green/gray/amber to match.
 - Try it: the default sketch blinks pin 13. Wire an LED's anode to pin 13
@@ -43,9 +39,8 @@ npm run dev
 - `src/geometry.ts` — rotation-aware pin position math, grid snapping
 - `src/netlist.ts` — union-find netlist builder; resolves HIGH/LOW/floating
   per pin from wires + GND/power pins + Arduino output pins + button state
-- `src/interpreter.ts` — the Arduino-C++-subset parser and sketch runner and we passed the sketch.ino into backend to actual send the c++ logic for arduino code
 - `src/state/circuitStore.ts` — Zustand store: parts, wires, selection,
-  in-progress wiring, sketch code, running state, digital pin states, console log
+  in-progress wiring, sketch code, compile code, running state, digital pin states, console log
 - `src/CircuitCanvas.tsx` — SVG canvas: drag, pin click-to-wire, delete button, live pin coloring
 - `src/WireLayer.tsx` — renders wires as curved paths, click to delete
 - `src/PartsPalette.tsx` — horizontal "add a part" strip
@@ -53,23 +48,6 @@ npm run dev
 - `src/LandingPage.tsx` / `src/SimulatorPage.tsx` — the two top-level pages
 - `src/App.tsx` — switches between landing and simulator (simple view state)
 
-## Supported sketch syntax (by design, intentionally a subset)
-
-```cpp
-void setup() {
-  pinMode(13, OUTPUT);
-  pinMode(2, INPUT_PULLUP);
-}
-
-void loop() {
-  if (digitalRead(2) == LOW) {
-    digitalWrite(13, HIGH);
-  } else {
-    digitalWrite(13, LOW);
-  }
-  delay(10);
-}
-```
 
 ## Next steps (in priority order)
 

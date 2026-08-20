@@ -391,6 +391,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       // simpler and correct: just accumulate characters, and only touch
       // consoleLog once a full line (terminated by '\n') is ready.
       usart.onByteTransmit = (value: number) => {
+        console.log("[USART TX]", value, JSON.stringify(String.fromCharCode(value))); // TEMP — remove after debugging
         const char = String.fromCharCode(value);
         if (char === "\r") return;
         if (char === "\n") {
@@ -415,28 +416,41 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const executeFrame = () => {
         if (!get().running || get().runToken !== token) return;
 
-        const currentState = get();
-        const activeArduino = currentState.parts.find((p) => p.type === "arduino-uno");
+        try {
+          const currentState = get();
+          const activeArduino = currentState.parts.find((p) => p.type === "arduino-uno");
 
-        if (activeArduino) {
-          const frameNetlist = buildNetlist(currentState.parts, currentState.wires, currentState.digitalPins, true);
+          if (activeArduino) {
+            const frameNetlist = buildNetlist(currentState.parts, currentState.wires, currentState.digitalPins, true);
 
-          for (let i = 0; i <= 5; i++) {
-            adc.channelValues[i] = frameNetlist.getAnalogVoltage(activeArduino.id, `a${i}`);
+            for (let i = 0; i <= 5; i++) {
+              adc.channelValues[i] = frameNetlist.getAnalogVoltage(activeArduino.id, `a${i}`);
+            }
+
+            syncSimpleDigitalInputs(frameNetlist, activeArduino.id, portB, portD, ultrasonicClaimedPins);
           }
 
-          syncSimpleDigitalInputs(frameNetlist, activeArduino.id, portB, portD, ultrasonicClaimedPins);
-        }
+          let remaining = instructionsPerFrame;
+          while (remaining > 0) {
+            const batch = Math.min(CHUNK_SIZE, remaining);
+            for (let i = 0; i < batch; i++) {
+              avrInstruction(cpu);
+                cpu.tick(); 
+            }
+            remaining -= batch;
 
-        let remaining = instructionsPerFrame;
-        while (remaining > 0) {
-          const batch = Math.min(CHUNK_SIZE, remaining);
-          for (let i = 0; i < batch; i++) {
-            avrInstruction(cpu);
+            for (const rig of ultrasonicRigs) rig.updateEcho();
           }
-          remaining -= batch;
 
-          for (const rig of ultrasonicRigs) rig.updateEcho();
+          if (Math.random() < 0.05) { // sample ~5% of frames so this doesn't flood the console
+            console.log("[CPU state]", { pc: cpu.pc, cycles: cpu.cycles });
+          }
+        } catch (err) {
+          // TEMP -- this is the diagnostic. Whatever prints here is the real bug.
+          console.error("[executeFrame crashed]", err);
+          pushLog(`[Simulation crashed: ${err instanceof Error ? err.message : String(err)}]`);
+          set({ running: false });
+          return; // stop requesting further frames instead of silently looping into the same crash
         }
 
         activeAnimationId = requestAnimationFrame(executeFrame);

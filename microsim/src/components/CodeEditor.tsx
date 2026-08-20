@@ -12,7 +12,6 @@ export function CodeEditor() {
 
   const consoleEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll to bottom on new log entries
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [consoleLog]);
@@ -65,11 +64,15 @@ export function CodeEditor() {
         <div className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-zinc-400 bg-[#252526]">
           Console
         </div>
-        <div className="flex-1 overflow-y-auto p-3 font-mono text-xs text-emerald-300 bg-[#1e1e1e]">
+        <div className="flex-1 overflow-y-auto p-3 font-mono text-xs text-emerald-300 bg-[#1e1e1e] whitespace-pre-wrap">
           {consoleLog.length === 0 ? (
             <div className="text-zinc-500">Press Run to start the simulation.</div>
           ) : (
-            consoleLog.map((line, i) => <div key={i}>{line}</div>)
+            consoleLog.map((line, i) => (
+              <div key={i} className="min-h-[1.25rem]">
+                {line || "\u00A0"}
+              </div>
+            ))
           )}
           <div ref={consoleEndRef} />
         </div>

@@ -29,7 +29,7 @@ export function BatteryPart({
 
   const negativeY = -1.5 * GRID;
   const positiveY = 1.5 * GRID;
-
+  
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
       {/* Snap-connector wires running out to the pin tips */}

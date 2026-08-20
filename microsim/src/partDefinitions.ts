@@ -2,7 +2,7 @@ import type { PartDefinition, Pin } from "./types/types";
 
 const ARDUINO_WIDTH = 32; // grid units (was 24)
 const ARDUINO_HEIGHT = 22; // grid units (was 18)
-
+  
 function evenlySpaced(count: number, span: number, start: number): number[] {
   const step = span / count;
   return Array.from({ length: count }, (_, i) => start + step * (i + 0.5));
