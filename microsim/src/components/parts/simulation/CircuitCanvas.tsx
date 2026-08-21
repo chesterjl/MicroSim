@@ -7,8 +7,8 @@ import { partComponentRegistry } from "../../../parts/registry";
 import { partDefinitions } from "../../../config/partDefinitions";
 import { GRID, type PartInstance, type PinRef } from "../../../types/types";
 
-const VIEW_WIDTH = 1200;
-const VIEW_HEIGHT = 800;
+const CANVAS_VIEW_WIDTH = 1200;
+const CANVAS_VIEW_HEIGHT = 800;
 
 const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04"];
 const SNAP_DISTANCE = 16;
@@ -31,13 +31,14 @@ interface CircuitCanvasProps {
   onOpenProperties: (part: PartInstance) => void;
 }
 
-export function CircuitCanvas({
-  zoomLevel,
-  panOffset,
-  setPanOffset,
-  isSimulating,
-  onOpenProperties,
-}: CircuitCanvasProps) {
+interface PartControlOverlayProps {
+  part: PartInstance;
+  isSimulating: boolean;
+  onDelete: () => void;
+  onOpenProperties: () => void;
+}
+
+export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating, onOpenProperties,}: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const parts = useCircuitStore((s) => s.parts);
   const wires = useCircuitStore((s) => s.wires);
@@ -103,8 +104,8 @@ export function CircuitCanvas({
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
-    const scaleX = VIEW_WIDTH / rect.width;
-    const scaleY = VIEW_HEIGHT / rect.height;
+    const scaleX = CANVAS_VIEW_WIDTH / rect.width;
+    const scaleY = CANVAS_VIEW_HEIGHT / rect.height;
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
@@ -320,7 +321,7 @@ export function CircuitCanvas({
       >
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+          viewBox={`0 0 ${CANVAS_VIEW_WIDTH} ${CANVAS_VIEW_HEIGHT}`}
           className="w-full h-full bg-[#161616]"
           onClick={handleBackgroundClick}
         >
@@ -330,7 +331,7 @@ export function CircuitCanvas({
             </pattern>
           </defs>
 
-          <rect width={VIEW_WIDTH} height={VIEW_HEIGHT} fill="url(#grid-dots)" />
+          <rect width={CANVAS_VIEW_WIDTH} height={CANVAS_VIEW_HEIGHT} fill="url(#grid-dots)" />
 
           {breadboardParts.map(renderPart)}
           {otherParts.map(renderPart)}
@@ -360,17 +361,7 @@ export function CircuitCanvas({
   );
 }
 
-function PartControlOverlay({
-  part,
-  isSimulating,
-  onDelete,
-  onOpenProperties,
-}: {
-  part: PartInstance;
-  isSimulating: boolean;
-  onDelete: () => void;
-  onOpenProperties: () => void;
-}) {
+function PartControlOverlay({part, isSimulating, onDelete, onOpenProperties}: PartControlOverlayProps) {
   const def = partDefinitions[part.type];
   if (!def) return null;
 
@@ -423,7 +414,7 @@ function PartControlOverlay({
         <title>
           {isSimulating
             ? "Cannot delete while simulation is running"
-            : "Delete component"}
+            : "Delete part"}
         </title>
       </g>
 

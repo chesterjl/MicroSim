@@ -13,16 +13,14 @@ npm run dev
 ```
 
 ## What works right now
-
 - **Landing page** — MicroSim intro, "how it works", and a board picker
   (Arduino Uno is live; ESP32 / Pico are marked "coming soon" placeholders).
 - **Simulator page** — two columns:
   - **Left**: a code editor (`sketch.ino`) with Run/Stop and a console log
     of executed pin operations.
-  - **Right**: a parts palette (`+ Add` buttons for LED / Resistor /
-    Pushbutton) above an SVG circuit canvas with a pre-placed Arduino Uno.
-- **Wiring** — I can see the wiring when i click the led but it doesnt yet connect to the others parts
-- **Deleting parts** — select a part to reveal a red × button at its corner.
+  - **Right**: a parts palette (`+` buttons for adding electronic parts in canvas) above an SVG circuit canvas with a pre-placed Arduino Uno.
+- **Wiring** — Connect the pins to other pins using wire and custom style position and colors.
+- **Deleting parts** — select a part to reveal a delete button above of every parts to delete it from the canvas.
 - **Real simulation** — we pass the code in the backend in (`src/state/circuitStore.ts`) this file call the backend and it returns the response. A netlist engine (`src/netlist.ts`, union-find over wires + button
   internals) resolves every pin's live HIGH/LOW/floating state each render,
   so LEDs actually light up, and pin dots color green/gray/amber to match.
@@ -50,14 +48,10 @@ npm run dev
 
 
 ## Next steps (in priority order)
-
-1. **Variables & expressions** in the interpreter (`int ledPin = 13;`,
-   arithmetic, `for`/`while` loops) — the current parser only understands
-   literal pin numbers and values.
-2. **Analog support** — `analogWrite`/`analogRead`, PWM-aware LED brightness.
-3. **More parts** — potentiometer, buzzer, servo, breadboard power rails.
-4. **Persistence** — serialize `{ parts, wires, code }` to JSON; save/load
+1. **Analog support** — `analogWrite`/`analogRead`, PWM-aware LED brightness.
+2. **More parts** — buzzer, servo, more parts.
+3. **Persistence** — serialize `{ parts, wires, code }` to JSON; save/load
    from localStorage or a downloadable file.
-5. **Multi-board support** — the landing page already has ESP32/Pico slots
+4. **Multi-board support** — the landing page already has ESP32/Pico slots
    wired up as disabled placeholders; adding a board is: new `PartDefinition`
    + new visual component + register in `partComponentRegistry`.

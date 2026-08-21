@@ -14,7 +14,7 @@ interface CircuitState {
   pendingWireStart: PinRef | null;
   connectPins: (a: PinRef, b: PinRef) => void;
   draftWaypoints: { x: number; y: number }[];
-
+  
   code: string;
   running: boolean;
   runToken: number;
@@ -114,6 +114,7 @@ function createUltrasonicDevice(
   let stateChangedAtCycle = 0;
   let lastTrigHigh = false;
   let echoHigh = false;
+  let echoDistanceCm = 400;
 
   const TRIGGER_TO_ECHO_DELAY_CYCLES = Math.round(150 * 16);
 
@@ -151,13 +152,18 @@ function createUltrasonicDevice(
           setEcho(true);
           state = "echoing";
           stateChangedAtCycle = cpu.cycles;
+
+
+          // A change made mid-pulse now correctly waits for the NEXT
+          // trigger instead of corrupting the pulse already in flight.
+          const livePart = useCircuitStore.getState().parts.find((p) => p.id === partId);
+          echoDistanceCm = Math.max(0, Math.min(400, Number(livePart?.properties?.distanceCm ?? 400)));
+
         }
       } else if (state === "echoing") {
-        // Fetch live part properties directly from the store on each cycle update
-        const livePart = useCircuitStore.getState().parts.find((p) => p.id === partId);
-        const distanceCm = Math.max(0, Math.min(400, Number(livePart?.properties?.distanceCm ?? 400)));
-        
-        const pulseCycles = Math.round(distanceCm * 58 * 16); // 58us/cm at 16 cycles/us
+          // now just uses the value captured once when this pulse started
+         const pulseCycles = Math.round(echoDistanceCm * 58 * 16);
+
         if (cpu.cycles - stateChangedAtCycle >= pulseCycles) {
           setEcho(false);
           state = "idle";
@@ -166,6 +172,7 @@ function createUltrasonicDevice(
     },
   };
 }
+
 /**
  * Discovers every part in the circuit that needs its own ExternalDevice
  * and builds them. Adding a new sensor type later means adding one
