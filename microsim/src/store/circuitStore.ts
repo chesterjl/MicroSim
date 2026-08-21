@@ -96,9 +96,7 @@ interface ExternalDevice {
  * HC-SR04 ultrasonic sensor. Trigger detection uses the port's own change
  * listener (fires exactly when the compiled code writes the pin -- already
  * cycle-accurate). The pulse itself is a small state machine:
- *
- *   idle --(trig rising edge)--> pending --(~150us)--> echoing --(distance-based duration)--> idle
- *
+ * idle --(trig rising edge)--> pending --(~150us)--> echoing --(distance-based duration)--> idle
  */
 function createUltrasonicDevice(
   portB: AVRIOPort,
@@ -124,7 +122,7 @@ function createUltrasonicDevice(
     echoHigh = high;
     echoPort.setPin(echoBit, high);
   };
-  
+
   trigPort.addListener(() => {
     if (!powered) return;
     const isHigh = trigPort.pinState(trigBit) === PinState.High;
