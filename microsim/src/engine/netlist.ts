@@ -1,5 +1,6 @@
-import type { PartInstance, Wire } from "./types/types";
-import { partDefinitions } from "./partDefinitions";
+
+import type { PartInstance, Wire } from "../types/types";
+import { partDefinitions } from "../config/partDefinitions";
 
 export type NetState = "high" | "low" | "floating";
 
@@ -40,10 +41,6 @@ export interface Netlist {
   getPartBrightness: (partId: string) => number;
   isPowered: (partId: string) => boolean;
   getAnalogVoltage: (partId: string, pinId: string) => number;
-  // Finds which Arduino digital pin (0-13), if any, shares an electrical
-  // net with the given part's pin. Used once at simulation start to learn
-  // the wiring topology so the CPU-level bridging code doesn't need to
-  // rebuild the whole netlist on every CPU cycle.
   getConnectedArduinoPin: (partId: string, pinId: string) => number | null;
 }
 
@@ -70,7 +67,7 @@ export function buildNetlist(
       getConnectedArduinoPin: () => null,
     };
   }
-
+  
   const uf = new UnionFind();
 
   for (const part of parts) {
@@ -83,15 +80,12 @@ export function buildNetlist(
     uf.union(pinKey(wire.from.partId, wire.from.pinId), pinKey(wire.to.partId, wire.to.pinId));
   }
 
-  // 1. Resistors
   for (const part of parts) {
     if (part.type === "resistor") {
       uf.union(pinKey(part.id, "pin1"), pinKey(part.id, "pin2"));
     }
   }
 
-  // 2. Potentiometers -- digital snap logic (unchanged). See the separate
-  // voltage-divider math further down for the real analog behavior.
   for (const part of parts) {
     if (part.type !== "potentiometer") continue;
     const wiperPosition = (part.properties?.wiperPosition as number) ?? 0.5;
@@ -102,7 +96,6 @@ export function buildNetlist(
     }
   }
 
-  // 3. Pushbuttons
   for (const part of parts) {
     if (part.type !== "pushbutton") continue;
     uf.union(pinKey(part.id, "pin1"), pinKey(part.id, "pin2"));
@@ -112,7 +105,6 @@ export function buildNetlist(
     }
   }
 
-  // 4. Breadboards
   const breadboards = parts.filter((p) => p.type.startsWith("breadboard"));
   for (const part of breadboards) {
     const def = partDefinitions[part.type];
@@ -201,15 +193,6 @@ export function buildNetlist(
     }
   }
 
-  // Ultrasonic sensor (HC-SR04) -- this is the SIMPLIFIED, instant
-  // approximation used only for on-canvas visual feedback (LED glow, pin
-  // colors) when nothing is actively reading it via real timed pulseIn().
-  // The REAL code-visible echo pulse, with actual microsecond timing, is
-  // driven separately at the CPU level in circuitStore.ts using
-  // getConnectedArduinoPin() below -- these two mechanisms don't conflict,
-  // they serve different purposes (visual approximation vs. real hardware
-  // timing that compiled pulseIn() code actually measures).
-  // netlist.ts - Update the HC-SR04 block
   for (const part of parts) {
     if (part.type !== "ultrasonic-hcsr04") continue;
 
@@ -218,7 +201,7 @@ export function buildNetlist(
     const powered = netPower.has(vccRoot) && netGround.has(gndRoot);
 
     const echoRoot = uf.find(pinKey(part.id, "echo"));
-    const trigRoot = uf.find(pinKey(part.id, "trig"));
+    // const trigRoot = uf.find(pinKey(part.id, "trig"));
 
     // Only drive static levels when CPU simulation is NOT actively running timed pulses
     if (!isRunning) {

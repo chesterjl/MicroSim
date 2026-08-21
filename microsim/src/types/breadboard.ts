@@ -1,5 +1,5 @@
 import type { PartInstance } from "../types/types";
-import type { NetState } from "../netlist";
+import type { NetState } from "../engine/netlist";
 
 export interface BreadboardProps {
   part: PartInstance;

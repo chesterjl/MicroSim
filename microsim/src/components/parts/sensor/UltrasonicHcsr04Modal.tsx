@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useCircuitStore } from "../../../state/circuitStore";
+import { useCircuitStore } from "../../../store/circuitStore";
+import { DEFAULT_ULTRASONIC_DISTANCE_CM } from "../../../config/partDefinitions";
 import type { PartInstance } from "../../../types/types";
 
 interface Props {
@@ -11,7 +12,7 @@ export function UltrasonicHcsr04Modal({ part, onClose }: Props) {
   const updatePartProperties = useCircuitStore((s) => s.updatePartProperties);
   const livePart = useCircuitStore((s) => s.parts.find((p) => p.id === part?.id));
 
-  const storeDistanceCm = (livePart?.properties?.distanceCm as number) ?? 50;
+  const storeDistanceCm = (livePart?.properties?.distanceCm as number) ?? DEFAULT_ULTRASONIC_DISTANCE_CM;
   const [localDistanceCm, setLocalDistanceCm] = useState<string>(String(storeDistanceCm));
 
   useEffect(() => {
@@ -43,9 +44,17 @@ export function UltrasonicHcsr04Modal({ part, onClose }: Props) {
 
   const handleDistanceBlur = () => {
     const num = Number(localDistanceCm);
-    const clamped = localDistanceCm === "" || isNaN(num) ? 50 : Math.min(400, Math.max(0, num));
+    const clamped =
+      localDistanceCm === "" || isNaN(num)
+        ? DEFAULT_ULTRASONIC_DISTANCE_CM
+        : Math.min(400, Math.max(0, num));
     setLocalDistanceCm(String(clamped));
     updatePartProperties(livePart.id, { distanceCm: clamped });
+  };
+
+  const handleDone = () => {
+    handleDistanceBlur();
+    onClose();
   };
 
   return (
@@ -94,7 +103,7 @@ export function UltrasonicHcsr04Modal({ part, onClose }: Props) {
 
         <div className="mt-6 flex justify-end">
           <button
-            onClick={onClose}
+            onClick={handleDone}
             className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-medium transition-colors"
           >
             Done

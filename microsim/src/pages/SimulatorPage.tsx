@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { useCircuitStore } from "../state/circuitStore";
-import { CodeEditor } from "../components/CodeEditor";
-import { CircuitCanvas } from "../components/CircuitCanvas";
+import { useCircuitStore } from "../store/circuitStore";
+import { CodeEditor } from "../components/parts/simulation/CodeEditor";
+import { CircuitCanvas } from "../components/parts/simulation/CircuitCanvas";
 import type { PartInstance } from "../types/types";
-import { PartsPalette } from "../components/PartsPalette";
+import { PartsPalette } from "../components/parts/simulation/PartsPalette";
 import { ComponentPropertiesModal } from "../components/common/ComponentPropertiesModal";
 import { Navbar, type ViewMode } from "../components/common/Navbar";
 

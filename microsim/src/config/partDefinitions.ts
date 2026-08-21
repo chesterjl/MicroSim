@@ -1,7 +1,9 @@
-import type { PartDefinition, Pin } from "./types/types";
+import type { PartDefinition, Pin } from "../types/types";
 
-const ARDUINO_WIDTH = 32; // grid units (was 24)
-const ARDUINO_HEIGHT = 22; // grid units (was 18)
+const ARDUINO_WIDTH = 32; 
+const ARDUINO_HEIGHT = 22; 
+
+export const DEFAULT_ULTRASONIC_DISTANCE_CM = 50;
   
 function evenlySpaced(count: number, span: number, start: number): number[] {
   const step = span / count;
@@ -250,7 +252,7 @@ export const partDefinitions: Record<string, PartDefinition> = {
       { id: "echo", label: "ECHO", x: 2, y: 5, type: "digital" },
       { id: "gnd", label: "GND", x: 6, y: 5, type: "passive" },
     ],
-    defaultProperties: { distanceCm: 50, detectionThresholdCm: 100 },
+    defaultProperties: { distanceCm: DEFAULT_ULTRASONIC_DISTANCE_CM, detectionThresholdCm: 100 },
   },
   "lcd-16x2-i2c": {
     type: "lcd-16x2-i2c",

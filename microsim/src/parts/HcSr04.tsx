@@ -1,7 +1,7 @@
 import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
-import type { NetState } from "../netlist";
-import { partDefinitions } from "../partDefinitions";
+import type { NetState } from "../engine/netlist";
+import { DEFAULT_ULTRASONIC_DISTANCE_CM, partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
 export function HcSr04Part({
@@ -17,7 +17,7 @@ export function HcSr04Part({
 }) {
   const def = partDefinitions["ultrasonic-hcsr04"];
 
-  const distanceCm = Number(part.properties?.distanceCm ?? 400);
+  const distanceCm = Number(part.properties?.distanceCm ?? DEFAULT_ULTRASONIC_DISTANCE_CM);
   const thresholdCm = Number(part.properties?.detectionThresholdCm ?? 100);
   const objectDetected = distanceCm <= thresholdCm;
 

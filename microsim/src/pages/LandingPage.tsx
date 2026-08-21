@@ -122,7 +122,7 @@ export function LandingPage({
                 onClick={() => board.available && onSelectBoard(board.id)} 
                 className={`relative flex flex-col justify-between p-6 rounded-2xl border transition-all duration-200 ${ 
                   board.available 
-                    ? "group bg-zinc-900/60 hover:bg-zinc-900 border-zinc-800 hover:border-cyan-500/50 cursor-pointer shadow-xl hover:shadow-cyan-500/10" 
+                    ? "group bg-zinc-900/60 hover:bg-zinc-900 border-zinc-800 hover:border-cyan-500/50 shadow-xl hover:shadow-cyan-500/10" 
                     : "bg-zinc-950/40 border-zinc-900 opacity-60 cursor-not-allowed" 
                 }`} 
               > 

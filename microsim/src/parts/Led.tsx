@@ -1,7 +1,7 @@
 import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
-import type { NetState, Netlist } from "../netlist";
-import { partDefinitions } from "../partDefinitions";
+import type { NetState, Netlist } from "../engine/netlist";
+import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
 const COLOR_PALETTE: Record<string, { off: string; on: string; glow: string }> = {

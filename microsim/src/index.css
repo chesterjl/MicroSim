@@ -19,3 +19,7 @@ body {
 .pin-dot:hover {
   filter: brightness(1.3);
 }
+
+button {
+  cursor: pointer;
+}

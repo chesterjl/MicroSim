@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useCircuitStore } from "../state/circuitStore";
+import { useCircuitStore } from "../../../store/circuitStore";
 
 interface PartOption {
   type: string;
@@ -76,8 +76,8 @@ export function PartsPalette() {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        title="Add new component"
-        className="w-[38px] h-[38px] rounded-full bg-sky-600 hover:bg-sky-500 text-white border-none flex items-center justify-center cursor-pointer shadow-lg transition-colors"
+        title="Add a new part"
+        className="w-[38px] h-[38px] rounded-full bg-sky-600 hover:bg-sky-500 text-white border-none flex items-center justify-center shadow-lg transition-colors"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <line x1="12" y1="5" x2="12" y2="19" />
@@ -92,7 +92,7 @@ export function PartsPalette() {
           <div className="p-2.5 border-b border-[#2a2a30]">
             <input
               type="text"
-              placeholder="Search components..."
+              placeholder="Search parts..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full px-3 py-2 bg-[#121214] border border-[#3a3a40] rounded-md text-white text-xs outline-none focus:border-cyan-500 transition-colors"
@@ -116,7 +116,7 @@ export function PartsPalette() {
                       <button
                         key={item.type}
                         onClick={() => handleSelectPart(item.type)}
-                        className="w-full px-4 py-2 bg-transparent hover:bg-zinc-800 text-zinc-200 text-xs text-left cursor-pointer flex items-center gap-3 transition-colors border-none"
+                        className="w-full px-4 py-2 bg-transparent hover:bg-zinc-800 text-zinc-200 text-xs text-left flex items-center gap-3 transition-colors border-none"
                       >
                         <img
                           src={item.icon}

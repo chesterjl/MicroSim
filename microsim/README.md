@@ -31,16 +31,16 @@ npm run dev
 
 ## Project structure
 
-- `src/types.ts` — core data model: Pin, PartDefinition, PartInstance, Wire
-- `src/partDefinitions.ts` — the "what a part IS" registry, including the
+- `src/types/types.ts` — core data model: Pin, PartDefinition, PartInstance, Wire (Shared TypeScript interfaces & types)
+- `src/config/partDefinitions.ts` — the "what a part IS" registry, including the (Static hardware specs & component metadata)
   programmatically-laid-out Arduino Uno header pins
 - `src/parts/*.tsx` — the "what a part LOOKS LIKE" — one SVG component per part
 - `src/parts/registry.tsx` — maps a part type string to its component
-- `src/geometry.ts` — rotation-aware pin position math, grid snapping
-- `src/netlist.ts` — union-find netlist builder; resolves HIGH/LOW/floating
+- `src/utils/geometry.ts` — rotation-aware pin position math, grid snapping (Math and canvas helper functions)
+- `src/engine/netlist.ts` — union-find netlist builder; resolves HIGH/LOW/floating (Core simulation & electrical calculations)
   per pin from wires + GND/power pins + Arduino output pins + button state
-- `src/state/circuitStore.ts` — Zustand store: parts, wires, selection,
-  in-progress wiring, sketch code, compile code, running state, digital pin states, console log
+- `src/store/circuitStore.ts` — Zustand store: parts, wires, selection,
+  in-progress wiring, sketch code, compile code, running state, digital pin states, console log (Global application state (Zustand))
 - `src/CircuitCanvas.tsx` — SVG canvas: drag, pin click-to-wire, delete button, live pin coloring
 - `src/WireLayer.tsx` — renders wires as curved paths, click to delete
 - `src/PartsPalette.tsx` — horizontal "add a part" strip

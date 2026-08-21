@@ -1,6 +1,6 @@
-import { GRID } from "./types/types";
-import type { PartInstance, ResolvedPin } from "./types/types";
-import { partDefinitions } from "./partDefinitions";
+import { GRID } from "../types/types";
+import type { PartInstance, ResolvedPin } from "../types/types";
+import { partDefinitions } from "../config/partDefinitions";
 
 function rotatePoint(x: number, y: number, rotation: 0 | 90 | 180 | 270) {
   switch (rotation) {

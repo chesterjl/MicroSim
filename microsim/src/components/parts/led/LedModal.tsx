@@ -1,4 +1,4 @@
-import { useCircuitStore } from "../../../state/circuitStore";
+import { useCircuitStore } from "../../../store/circuitStore";
 import type { PartInstance } from "../../../types/types";
 
 interface Props {

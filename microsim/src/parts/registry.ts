@@ -1,5 +1,5 @@
 import type { PartInstance } from "../types/types";
-import type { buildNetlist, NetState } from "../netlist";
+import type { buildNetlist, NetState } from "../engine/netlist";
 import { LedPart } from "./Led";
 import { ResistorPart } from "./Resistor";
 import { PushbuttonPart } from "./Pushbutton";

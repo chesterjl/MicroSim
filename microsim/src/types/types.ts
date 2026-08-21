@@ -32,8 +32,8 @@ export interface Wire {
   id: string;
   from: { partId: string; pinId: string };
   to: { partId: string; pinId: string };
-  color?: string; // Custom color per wire instance
-  waypoints?: { x: number; y: number }[]; // Canvas click points for corners
+  color?: string; 
+  waypoints?: { x: number; y: number }[];
 }
 
 export interface PinRef {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PartInstance, Wire } from "../types/types";
-import { getResolvedPins, buildOrthogonalPath } from "../geometry";
+import { getResolvedPins, buildOrthogonalPath } from "../utils/geometry";
 import { WireModal } from "../components/parts/wire/WireModal";
 
 function resolvePinPosition(parts: PartInstance[], partId: string, pinId: string) {
@@ -21,13 +21,15 @@ interface DraftWire {
 interface WireLayerProps {
   parts: PartInstance[];
   wires: Wire[];
-  onDeleteWire: (id: string) => void;
+  onDeleteWire: (id: string  ) => void;
   draftWire?: DraftWire | null;
+  isSimulating: boolean;
 }
 
-export function WireLayer({ parts, wires, onDeleteWire, draftWire }: WireLayerProps) {
-  const [selectedWire, setSelectedWire] = useState<Wire | null>(null);
 
+export function WireLayer({ parts, wires, onDeleteWire, draftWire, isSimulating }: WireLayerProps) {
+  const [selectedWire, setSelectedWire] = useState<Wire | null>(null);
+  
   return (
     <>
       <g className="wire-layer">
@@ -41,7 +43,7 @@ export function WireLayer({ parts, wires, onDeleteWire, draftWire }: WireLayerPr
           const pathD = buildOrthogonalPath(from, to, wire.waypoints || []);
 
           return (
-            <g key={wire.id} className="group cursor-pointer">
+            <g key={wire.id} className="group">
               {/* Invisible wide stroke for easier clicking */}
               <path
                 d={pathD}
@@ -50,6 +52,9 @@ export function WireLayer({ parts, wires, onDeleteWire, draftWire }: WireLayerPr
                 strokeWidth={14}
                 onClick={(e) => {
                   e.stopPropagation();
+
+                  if (isSimulating) return;
+
                   setSelectedWire(wire);
                 }}
               />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { NetState } from "../netlist";
+import type { NetState } from "../engine/netlist";
 
 /**
  * Renders the small circle at a pin's location -- the click target used

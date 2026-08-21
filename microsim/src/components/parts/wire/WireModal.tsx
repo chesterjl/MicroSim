@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import type { Wire } from "../../../types/types";
-import { useCircuitStore } from "../../../state/circuitStore";
+import { useCircuitStore } from "../../../store/circuitStore";
 
 const WIRE_COLORS = [
   { name: "Green", hex: "#22c55e" },

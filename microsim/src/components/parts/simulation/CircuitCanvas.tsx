@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useCircuitStore } from "../state/circuitStore";
-import { buildNetlist } from "../netlist";
-import { getResolvedPins, snapToGrid } from "../geometry";
-import { WireLayer } from "../parts/WireLayer";
-import { partComponentRegistry } from "../parts/registry";
-import { partDefinitions } from "../partDefinitions";
-import { GRID, type PartInstance, type PinRef } from "../types/types";
+import { useCircuitStore } from "../../../store/circuitStore";
+import { buildNetlist } from "../../../engine/netlist";
+import { getResolvedPins, snapToGrid } from "../../../utils/geometry";
+import { WireLayer } from "../../../parts/WireLayer";
+import { partComponentRegistry } from "../../../parts/registry";
+import { partDefinitions } from "../../../config/partDefinitions";
+import { GRID, type PartInstance, type PinRef } from "../../../types/types";
 
 const VIEW_WIDTH = 1200;
 const VIEW_HEIGHT = 800;
@@ -83,14 +83,21 @@ export function CircuitCanvas({
         activeEl?.getAttribute("contenteditable") === "true";
       if (isTyping) return;
 
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedPartId) {
+      if (!isSimulating && (e.key === "Delete" || e.key === "Backspace") && selectedPartId) {
         deletePart(selectedPartId);
       }
+
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPartId, deletePart, pendingWireStart, cancelWire]);
+  }, [selectedPartId, deletePart, pendingWireStart, cancelWire, isSimulating]);
+
+  useEffect(() => {
+    if (isSimulating && pendingWireStart) {
+      cancelWire();
+    }
+  }, [isSimulating, pendingWireStart, cancelWire]);
 
   function toSvgPoint(e: React.MouseEvent | MouseEvent) {
     const svg = svgRef.current;
@@ -204,6 +211,9 @@ export function CircuitCanvas({
 
   function handlePinClick(e: React.MouseEvent, partId: string, pinId: string) {
     e.stopPropagation();
+
+    if (isSimulating) return;
+
     if (pendingWireStart) {
       if (pendingWireStart.partId === partId && pendingWireStart.pinId === pinId) {
         cancelWire();
@@ -328,13 +338,18 @@ export function CircuitCanvas({
           <WireLayer
             parts={parts}
             wires={wires}
-            onDeleteWire={deleteWire}
+            onDeleteWire={(id) => {
+              if (isSimulating) return;
+              deleteWire(id);
+            }}
             draftWire={draftWireData}
+            isSimulating={isSimulating}
           />
 
           {selectedPart && (
             <PartControlOverlay
               part={selectedPart}
+              isSimulating={isSimulating}
               onDelete={() => deletePart(selectedPart.id)}
               onOpenProperties={() => onOpenProperties(selectedPart)}
             />
@@ -347,10 +362,12 @@ export function CircuitCanvas({
 
 function PartControlOverlay({
   part,
+  isSimulating,
   onDelete,
   onOpenProperties,
 }: {
   part: PartInstance;
+  isSimulating: boolean;
   onDelete: () => void;
   onOpenProperties: () => void;
 }) {
@@ -365,6 +382,9 @@ function PartControlOverlay({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+
+    if (isSimulating) return;
+
     onDelete();
   };
 
@@ -380,8 +400,8 @@ function PartControlOverlay({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <g className="cursor-pointer hover:opacity-80 transition-opacity" onMouseDown={handleDelete} onClick={handleDelete}>
-        <circle cx={hasProperties ? -14 : 0} cy={0} r={12} fill="#dc2626" stroke="#ffffff" strokeWidth={1.5} />
+      <g className="hover:opacity-80 transition-opacity" onMouseDown={handleDelete} onClick={handleDelete}>
+        <circle cx={hasProperties ? -14 : 0} cy={0} r={12} fill={isSimulating ? "#52525b" : "#dc2626"} stroke="#ffffff" strokeWidth={1.5} />
         <line
           x1={(hasProperties ? -14 : 0) - 4}
           y1={-4}
@@ -400,11 +420,15 @@ function PartControlOverlay({
           strokeWidth={2}
           strokeLinecap="round"
         />
-        <title>Delete component</title>
+        <title>
+          {isSimulating
+            ? "Cannot delete while simulation is running"
+            : "Delete component"}
+        </title>
       </g>
 
       {hasProperties && (
-        <g className="cursor-pointer hover:opacity-80 transition-opacity" onMouseDown={handleProperties} onClick={handleProperties}>
+        <g className="hover:opacity-80 transition-opacity" onMouseDown={handleProperties} onClick={handleProperties}>
           <circle cx={14} cy={0} r={12} fill="#0284c7" stroke="#ffffff" strokeWidth={1.5} />
           <text x={14} y={4} textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="bold" className="select-none pointer-events-none">
             ⚙

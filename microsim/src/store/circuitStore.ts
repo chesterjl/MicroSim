@@ -1,25 +1,10 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import {
-  CPU,
-  avrInstruction,
-  portBConfig,
-  portDConfig,
-  AVRUSART,
-  AVRIOPort,
-  AVRTimer,
-  timer0Config,
-  timer1Config,
-  timer2Config,
-  AVRADC,
-  adcConfig,
-  usart0Config,
-  PinState,
-} from "avr8js";
+import { CPU, avrInstruction, portBConfig, portDConfig, AVRUSART, AVRIOPort, AVRTimer, timer0Config, timer1Config, timer2Config, AVRADC, adcConfig, usart0Config, PinState } from "avr8js";
 import type { PartInstance, PinRef, Wire } from "../types/types";
-import { createPartInstance } from "../partDefinitions";
-import { buildNetlist } from "../netlist";
-import type { Netlist } from "../netlist";
+import { createPartInstance } from "../config/partDefinitions";
+import { buildNetlist } from "../engine/netlist";
+import type { Netlist } from "../engine/netlist";
 import { DEFAULT_SKETCH } from "../constants/constant";
 
 interface CircuitState {
@@ -65,7 +50,7 @@ async function compileSketch(code: string): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
   });
-
+  
   const data = await response.json();
   if (!data.success) {
     throw new Error(data.error);
@@ -94,112 +79,169 @@ function getPortAndBit(pin: number, portB: AVRIOPort, portD: AVRIOPort): { port:
 }
 
 /**
- * One HC-SR04 wired (directly OR through a breadboard) into the running
- * circuit. Trigger detection uses the port's own change listener, which
- * fires precisely as the compiled code writes the pin -- that part is
- * already cycle-accurate. Ending the echo pulse at the right *time* is the
- * hard part: a full animation frame is ~16ms of chip time, but a real echo
- * pulse for a typical reading only lasts a few milliseconds, so checking
- * only once per frame would make distance readings wildly wrong. That's
- * why `updateEcho()` gets called many times per frame, in small
- * instruction chunks, from the main loop below -- not on a timer.
+ * A device that lives "outside" the AVR chip and needs to react to /
+ * drive pin state as the CPU runs -- an ultrasonic sensor's echo timing,
+ * a debounced button, a DHT11's single-wire protocol, a servo's expected
+ * feedback pulse, etc. `claimedPins` lets the generic per-frame input
+ * sync below automatically skip any pin a device is already managing at
+ * finer resolution, without executeFrame needing to know that specific
+ * device type exists.
  */
-interface UltrasonicRig {
-  trigPin: number;
-  echoPin: number;
-  updateEcho: () => void;
+interface ExternalDevice {
+  claimedPins: number[];
+  update: (cpu: CPU) => void;
 }
 
-function setupUltrasonicRigs(
-  cpu: CPU,
+/**
+ * HC-SR04 ultrasonic sensor. Trigger detection uses the port's own change
+ * listener (fires exactly when the compiled code writes the pin -- already
+ * cycle-accurate). The pulse itself is a small state machine:
+ *
+ *   idle --(trig rising edge)--> pending --(~150us)--> echoing --(distance-based duration)--> idle
+ *
+ */
+function createUltrasonicDevice(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  partId: string, 
+  trigPin: number,
+  echoPin: number,
+  powered: boolean
+): ExternalDevice {
+  const { port: trigPort, bit: trigBit } = getPortAndBit(trigPin, portB, portD);
+  const { port: echoPort, bit: echoBit } = getPortAndBit(echoPin, portB, portD);
+
+  type EchoState = "idle" | "pending" | "echoing";
+  let state: EchoState = "idle";
+  let stateChangedAtCycle = 0;
+  let lastTrigHigh = false;
+  let echoHigh = false;
+
+  const TRIGGER_TO_ECHO_DELAY_CYCLES = Math.round(150 * 16);
+
+  const setEcho = (high: boolean) => {
+    if (echoHigh === high) return;
+    echoHigh = high;
+    echoPort.setPin(echoBit, high);
+  };
+  
+  trigPort.addListener(() => {
+    if (!powered) return;
+    const isHigh = trigPort.pinState(trigBit) === PinState.High;
+    if (isHigh && !lastTrigHigh && state === "idle") {
+      state = "pending";
+      stateChangedAtCycle = 0;
+    }
+    lastTrigHigh = isHigh;
+  });
+
+  let justTriggered = false;
+  trigPort.addListener(() => {
+    if (!powered) return;
+    if (state === "pending" && stateChangedAtCycle === 0) justTriggered = true;
+  });
+
+  return {
+    claimedPins: [trigPin, echoPin],
+    update: (cpu: CPU) => {
+      if (state === "pending") {
+        if (justTriggered) {
+          stateChangedAtCycle = cpu.cycles;
+          justTriggered = false;
+        }
+        if (stateChangedAtCycle > 0 && cpu.cycles - stateChangedAtCycle >= TRIGGER_TO_ECHO_DELAY_CYCLES) {
+          setEcho(true);
+          state = "echoing";
+          stateChangedAtCycle = cpu.cycles;
+        }
+      } else if (state === "echoing") {
+        // Fetch live part properties directly from the store on each cycle update
+        const livePart = useCircuitStore.getState().parts.find((p) => p.id === partId);
+        const distanceCm = Math.max(0, Math.min(400, Number(livePart?.properties?.distanceCm ?? 400)));
+        
+        const pulseCycles = Math.round(distanceCm * 58 * 16); // 58us/cm at 16 cycles/us
+        if (cpu.cycles - stateChangedAtCycle >= pulseCycles) {
+          setEcho(false);
+          state = "idle";
+        }
+      }
+    },
+  };
+}
+/**
+ * Discovers every part in the circuit that needs its own ExternalDevice
+ * and builds them. Adding a new sensor type later means adding one
+ * `createXDevice(...)` factory plus one branch here -- executeFrame's main
+ * loop never needs to change again, since it just iterates whatever comes
+ * back from this function.
+ */
+function setupExternalDevices(
   portB: AVRIOPort,
   portD: AVRIOPort,
   parts: PartInstance[],
   wires: Wire[],
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>
-): UltrasonicRig[] {
+): ExternalDevice[] {
   // One-time netlist build purely to resolve wiring topology -- which
-  // Arduino pin each sensor's trig/echo actually lands on, and whether the
-  // sensor is actually powered. This correctly accounts for breadboard
-  // internal bridging (columns, rails), unlike a raw search through the
-  // `wires` array, which only sees direct part-to-part wires and misses
-  // anything routed through a breadboard -- which is how these are
-  // virtually always wired in practice.
+  // Arduino pin each device's pins actually land on, and whether each is
+  // powered. Correctly accounts for breadboard internal bridging (columns,
+  // rails), unlike a raw search through `wires`, which only sees direct
+  // part-to-part wires and misses anything routed through a breadboard --
+  // which is how these are virtually always wired in practice.
   const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
   const arduinoPart = parts.find((p) => p.type === "arduino-uno");
   if (!arduinoPart) return [];
 
-  const rigs: UltrasonicRig[] = [];
+  const devices: ExternalDevice[] = [];
 
   for (const part of parts) {
-    if (part.type !== "ultrasonic-hcsr04") continue;
+    if (part.type === "ultrasonic-hcsr04") {
+      const trigPin = wiringNetlist.getConnectedArduinoPin(part.id, "trig");
+      const echoPin = wiringNetlist.getConnectedArduinoPin(part.id, "echo");
+      if (trigPin === null || echoPin === null) continue;
 
-    const trigPin = wiringNetlist.getConnectedArduinoPin(part.id, "trig");
-    const echoPin = wiringNetlist.getConnectedArduinoPin(part.id, "echo");
-    if (trigPin === null || echoPin === null) continue; // not wired to the Arduino at all, nothing to simulate
-
-    const powered = wiringNetlist.isPowered(part.id);
-    const { port: trigPort, bit: trigBit } = getPortAndBit(trigPin, portB, portD);
-    const { port: echoPort, bit: echoBit } = getPortAndBit(echoPin, portB, portD);
-
-    let triggeredAtCycle: number | null = null;
-    let lastTrigHigh = false;
-
-    trigPort.addListener(() => {
-      if (!powered) return;
-      const isHigh = trigPort.pinState(trigBit) === PinState.High;
-      if (isHigh && !lastTrigHigh) {
-        triggeredAtCycle = cpu.cycles;
-        echoPort.setPin(echoBit, true);
-      }
-      lastTrigHigh = isHigh;
-    });
-
-    rigs.push({
-      trigPin,
-      echoPin,
-      updateEcho: () => {
-        if (triggeredAtCycle === null) return;
-        // Standard HC-SR04 formula: pulse duration (us) = distance(cm) * 58.
-        // Read distanceCm live on every check (not just at trigger time) so
-        // adjusting it mid-run via the properties modal takes effect on
-        // the next trigger cycle without needing to restart the sim.
-        const distanceCm = Number(part.properties?.distanceCm ?? 400);
-        const pulseCycles = Math.round(distanceCm * 58 * 16); // 16 cycles/us at 16MHz
-        if (cpu.cycles - triggeredAtCycle >= pulseCycles) {
-          echoPort.setPin(echoBit, false);
-          triggeredAtCycle = null;
-        }
-      },
-    });
+      const powered = wiringNetlist.isPowered(part.id);
+      // Pass part.id instead of part
+      devices.push(createUltrasonicDevice(portB, portD, part.id, trigPin, echoPin, powered));
+    }
   }
 
-  return rigs;
+  return devices;
 }
 
 /**
  * Forces external circuit state into any Arduino pin currently configured
- * as INPUT (e.g. a pushbutton, or anything else read via digitalRead()).
- * Without this, digitalRead() only ever sees avr8js's own internal
- * default -- it has no way to know what your netlist says is actually
- * wired to that pin. Runs once per frame; pins claimed by an
- * UltrasonicRig are excluded since those need the finer per-chunk timing
- * above instead, and this coarser per-frame pass would fight with it.
+ * as INPUT (e.g. a pushbutton, or anything else read via digitalRead())
+ * that ISN'T already claimed by an ExternalDevice above. Without this,
+ * digitalRead() only ever sees avr8js's own internal default -- it has no
+ * way to know what your netlist says is actually wired to that pin. Runs
+ * once per frame; that's plenty for something like a button, which
+ * doesn't need microsecond timing the way an ultrasonic echo pulse does.
  */
 function syncSimpleDigitalInputs(
   netlist: Netlist,
   arduinoId: string,
+  cpu: CPU,
   portB: AVRIOPort,
   portD: AVRIOPort,
   excludePins: Set<number>
 ) {
   for (let pin = 0; pin <= 13; pin++) {
     if (excludePins.has(pin)) continue;
-    const { port, bit } = getPortAndBit(pin, portB, portD);
-    const currentState = port.pinState(bit);
-    const isInputMode = currentState === PinState.Input || currentState === PinState.InputPullUp;
-    if (!isInputMode) continue;
 
+    // Read the DDR register bit directly to determine INPUT vs OUTPUT --
+    // more reliable than inferring it from PinState, since an externally
+    // forced INPUT pin can report the same High/Low state an OUTPUT pin
+    // would.
+    let isOutput: boolean;
+    if (pin <= 7) {
+      isOutput = (cpu.data[0x0a] & (1 << pin)) !== 0; // DDRD
+    } else {
+      isOutput = (cpu.data[0x04] & (1 << (pin - 8))) !== 0; // DDRB
+    }
+    if (isOutput) continue;
+
+    const { port, bit } = getPortAndBit(pin, portB, portD);
     const netState = netlist.getPinState(arduinoId, `d${pin}`);
     if (netState === "floating") continue; // let avr8js's own internal pull-up/float behavior stand
     port.setPin(bit, netState === "high");
@@ -341,20 +383,14 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const adc = new AVRADC(cpu, adcConfig);
 
       const initialState = get();
-
-      // FIXED: was a raw wires-array search that only found DIRECT
-      // sensor-to-Arduino wires, missing anything routed through a
-      // breadboard (the normal case). Now uses the netlist's full wiring
-      // resolution, which understands breadboard internal bridging too.
-      const ultrasonicRigs = setupUltrasonicRigs(
-        cpu,
+      const externalDevices = setupExternalDevices(
         portB,
         portD,
         initialState.parts,
         initialState.wires,
         initialState.digitalPins
       );
-      const ultrasonicClaimedPins = new Set(ultrasonicRigs.flatMap((r) => [r.trigPin, r.echoPin]));
+      const claimedPins = new Set(externalDevices.flatMap((d) => d.claimedPins));
 
       const updatePinState = () => {
         const nextPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }> = {};
@@ -384,14 +420,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const usart = new AVRUSART(cpu, usart0Config, 16000000);
       let serialLineBuffer = "";
 
-      // FIXED: the previous version tried to live-update the console's
-      // LAST array entry on every single character, which -- after the
-      // first completed line -- ended up overwriting that just-finished
-      // line instead of starting a new one, corrupting the log. This is
-      // simpler and correct: just accumulate characters, and only touch
-      // consoleLog once a full line (terminated by '\n') is ready.
       usart.onByteTransmit = (value: number) => {
-        console.log("[USART TX]", value, JSON.stringify(String.fromCharCode(value))); // TEMP — remove after debugging
         const char = String.fromCharCode(value);
         if (char === "\r") return;
         if (char === "\n") {
@@ -404,13 +433,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
       const speed = 16000000;
       const instructionsPerFrame = speed / 60;
-      // FIXED: previously the whole frame's ~266,666 instructions ran in
-      // one uninterrupted synchronous loop, so nothing could update the
-      // echo pin's state until the entire frame finished -- far too
-      // coarse for a pulse that's supposed to last only a few
-      // milliseconds. Running in small chunks and re-checking ultrasonic
-      // timing between each one gives resolution on the order of a few
-      // microseconds instead of ~16 milliseconds.
       const CHUNK_SIZE = 100;
 
       const executeFrame = () => {
@@ -427,7 +449,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
               adc.channelValues[i] = frameNetlist.getAnalogVoltage(activeArduino.id, `a${i}`);
             }
 
-            syncSimpleDigitalInputs(frameNetlist, activeArduino.id, portB, portD, ultrasonicClaimedPins);
+            syncSimpleDigitalInputs(frameNetlist, activeArduino.id, cpu, portB, portD, claimedPins);
           }
 
           let remaining = instructionsPerFrame;
@@ -435,22 +457,16 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
             const batch = Math.min(CHUNK_SIZE, remaining);
             for (let i = 0; i < batch; i++) {
               avrInstruction(cpu);
-                cpu.tick(); 
+              cpu.tick();
+              for (const device of externalDevices) device.update(cpu);
             }
             remaining -= batch;
-
-            for (const rig of ultrasonicRigs) rig.updateEcho();
-          }
-
-          if (Math.random() < 0.05) { // sample ~5% of frames so this doesn't flood the console
-            console.log("[CPU state]", { pc: cpu.pc, cycles: cpu.cycles });
           }
         } catch (err) {
-          // TEMP -- this is the diagnostic. Whatever prints here is the real bug.
           console.error("[executeFrame crashed]", err);
           pushLog(`[Simulation crashed: ${err instanceof Error ? err.message : String(err)}]`);
           set({ running: false });
-          return; // stop requesting further frames instead of silently looping into the same crash
+          return;
         }
 
         activeAnimationId = requestAnimationFrame(executeFrame);

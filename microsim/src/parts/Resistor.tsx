@@ -1,7 +1,7 @@
 import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
-import type { NetState } from "../netlist";
-import { partDefinitions } from "../partDefinitions";
+import type { NetState } from "../engine/netlist";
+import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
 // Digit color map (0 to 9)

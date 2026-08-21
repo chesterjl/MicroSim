@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import { useCircuitStore } from "../state/circuitStore";
+import { useCircuitStore } from "../../../store/circuitStore";
 
 export function CodeEditor() {
   const code = useCircuitStore((s) => s.code);
