@@ -24,13 +24,13 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
     if (!hasInitializedArduino.current) {
       hasInitializedArduino.current = true;
       if (!parts.some((p) => p.type === "arduino-uno")) {
-        addPart("arduino-uno", 600, 400); // Centered for 1200x800 viewBox
+        addPart("arduino-uno", 3900, 3800);
       }
     }
   }, [parts, addPart]);
 
   const handleZoom = (delta: number) => {
-    setZoomLevel((prev) => Math.min(Math.max(prev + delta, 0.3), 3.0));
+    setZoomLevel((prev) => Math.min(Math.max(prev + delta, 0.4), 3.0));
   };
 
   const handleResetView = () => {
@@ -63,14 +63,12 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
           </div>
         )}
 
-        {/* Circuit Canvas View */}
         {(viewMode === "canvas" || viewMode === "split") && (
           <div className={`${
             viewMode === "split" ?
              "w-full md:flex-1" : 
              "w-full"} flex flex-col relative min-w-0 bg-[#161616] overflow-hidden h-full`}>
 
-            {/* Palette hidden during simulation */}
             {!running && (
               <div className="absolute top-4 left-4 z-20">
                 <PartsPalette />

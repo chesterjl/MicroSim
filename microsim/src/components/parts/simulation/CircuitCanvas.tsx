@@ -7,14 +7,8 @@ import { partComponentRegistry } from "../../../parts/registry";
 import { partDefinitions } from "../../../config/partDefinitions";
 import { GRID, type PartInstance, type PinRef } from "../../../types/types";
 
-const CANVAS_VIEW_WIDTH = 1200;
-const CANVAS_VIEW_HEIGHT = 800;
-const WORLD_WIDTH = 6000;
-const WORLD_HEIGHT = 4000;
-const BASE_SCALE = WORLD_WIDTH / CANVAS_VIEW_WIDTH; // 5
-
-export const WORLD_OFFSET_X = (CANVAS_VIEW_WIDTH - WORLD_WIDTH) / 2;
-export const WORLD_OFFSET_Y = (CANVAS_VIEW_HEIGHT - WORLD_HEIGHT) / 2;
+const WORLD_WIDTH = 7000;
+const WORLD_HEIGHT = 7000;
 
 const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04"];
 const SNAP_DISTANCE = 16;
@@ -44,15 +38,17 @@ interface PartControlOverlayProps {
   onOpenProperties: () => void;
 }
 
-export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating, onOpenProperties,}: CircuitCanvasProps) {
+export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating, onOpenProperties }: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const parts = useCircuitStore((s) => s.parts);
   const wires = useCircuitStore((s) => s.wires);
   const digitalPins = useCircuitStore((s) => s.digitalPins);
   const selectedPartId = useCircuitStore((s) => s.selectedPartId);
   const pendingWireStart = useCircuitStore((s) => s.pendingWireStart);
   const draftWaypoints = useCircuitStore((s) => s.draftWaypoints);
-  
+
   const movePart = useCircuitStore((s) => s.movePart);
   const selectPart = useCircuitStore((s) => s.selectPart);
   const deletePart = useCircuitStore((s) => s.deletePart);
@@ -67,9 +63,10 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
-
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const effectiveZoom = zoomLevel * 0.55;
 
   const netlist = useMemo(
     () => buildNetlist(parts, wires, digitalPins, isSimulating),
@@ -93,7 +90,6 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
       if (!isSimulating && (e.key === "Delete" || e.key === "Backspace") && selectedPartId) {
         deletePart(selectedPartId);
       }
-
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -110,12 +106,17 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
-    const scaleX = WORLD_WIDTH / rect.width;   // CHANGED: was CANVAS_VIEW_WIDTH
-    const scaleY = WORLD_HEIGHT / rect.height; 
-    return {
-      x: (e.clientX - rect.left) * scaleX + WORLD_OFFSET_X, // CHANGED: + offset
-      y: (e.clientY - rect.top) * scaleY + WORLD_OFFSET_Y,  // CHANGED: + offset
-    };
+
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const worldX = (screenX - centerX - panOffset.x) / effectiveZoom + WORLD_WIDTH / 2;
+    const worldY = (screenY - centerY - panOffset.y) / effectiveZoom + WORLD_HEIGHT / 2;
+
+    return { x: worldX, y: worldY };
   }
 
   function handlePartMouseDown(e: React.MouseEvent, partId: string) {
@@ -149,15 +150,33 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
     setCursor(point);
 
     if (isPanning) {
-      setPanOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
-      });
+      let newX = e.clientX - panStart.x;
+      let newY = e.clientY - panStart.y;
+
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+
+        // Calculate maximum pan offsets to prevent dragging past grid edges
+        const maxPanX = Math.max(0, (WORLD_WIDTH * effectiveZoom - width) / 2);
+        const maxPanY = Math.max(0, (WORLD_HEIGHT * effectiveZoom - height) / 2);
+
+        newX = Math.min(Math.max(newX, -maxPanX), maxPanX);
+        newY = Math.min(Math.max(newY, -maxPanY), maxPanY);
+      }
+
+      setPanOffset({ x: newX, y: newY });
       return;
     }
 
     if (drag && !isSimulating) {
-      movePart(drag.partId, snapToGrid(point.x - drag.offsetX), snapToGrid(point.y - drag.offsetY));
+      const rawX = point.x - drag.offsetX;
+      const rawY = point.y - drag.offsetY;
+
+      // Restrict component movement within grid bounds (50px inner padding)
+      const clampedX = Math.min(Math.max(rawX, 50), WORLD_WIDTH - 50);
+      const clampedY = Math.min(Math.max(rawY, 50), WORLD_HEIGHT - 50);
+
+      movePart(drag.partId, snapToGrid(clampedX), snapToGrid(clampedY));
     }
   }
 
@@ -275,7 +294,6 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
       waypoints: draftWaypoints,
     };
   }, [pendingWireStart, cursor, parts, draftWaypoints]);
-  
 
   function renderPart(part: PartInstance) {
     const Component = partComponentRegistry[part.type];
@@ -312,7 +330,8 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
 
   return (
     <div
-      className="w-full h-full select-none overflow-hidden"
+      ref={containerRef}
+      className="w-full h-full select-none overflow-hidden relative bg-[#161616]"
       style={{ cursor: canvasCursor }}
       onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleMouseMove}
@@ -320,61 +339,60 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
       onMouseLeave={handleMouseUp}
       onContextMenu={handleContextMenu}
     >
-      <div
-        className="w-full h-full origin-center transition-transform duration-75 ease-out"
-       style={{
-        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel * BASE_SCALE})`, // CHANGED
-      }}
+      <svg
+        ref={svgRef}
+        className="w-full h-full overflow-hidden block"
+        onClick={handleBackgroundClick}
       >
-        <svg
-          ref={svgRef}
-          viewBox={`${WORLD_OFFSET_X} ${WORLD_OFFSET_Y} ${WORLD_WIDTH} ${WORLD_HEIGHT}`} // CHANGED
-          className="w-full h-full bg-[#161616]"
-          onClick={handleBackgroundClick}
-        >
-          <defs>
-            <pattern id="grid-dots" width="20" height="20" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1" fill="#2a2a2a" />
-            </pattern>
-          </defs>
+        <defs>
+          <pattern id="grid-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="#2a2a2a" />
+          </pattern>
+        </defs>
 
+        <g
+          transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${effectiveZoom})`}
+          style={{ transformOrigin: "center" }}
+        >
           <rect
-            x={WORLD_OFFSET_X}   
-            y={WORLD_OFFSET_Y}    
-            width={WORLD_WIDTH}   
-            height={WORLD_HEIGHT} 
+            x={-WORLD_WIDTH / 2}
+            y={-WORLD_HEIGHT / 2}
+            width={WORLD_WIDTH}
+            height={WORLD_HEIGHT}
             fill="url(#grid-dots)"
           />
 
-          {breadboardParts.map(renderPart)}
-          {otherParts.map(renderPart)}
+          <g transform={`translate(${-WORLD_WIDTH / 2}, ${-WORLD_HEIGHT / 2})`}>
+            {breadboardParts.map(renderPart)}
+            {otherParts.map(renderPart)}
 
-          <WireLayer
-            parts={parts}
-            wires={wires}
-            onDeleteWire={(id) => {
-              if (isSimulating) return;
-              deleteWire(id);
-            }}
-            draftWire={draftWireData}
-            isSimulating={isSimulating}
-          />
-
-          {selectedPart && (
-            <PartControlOverlay
-              part={selectedPart}
+            <WireLayer
+              parts={parts}
+              wires={wires}
+              onDeleteWire={(id) => {
+                if (isSimulating) return;
+                deleteWire(id);
+              }}
+              draftWire={draftWireData}
               isSimulating={isSimulating}
-              onDelete={() => deletePart(selectedPart.id)}
-              onOpenProperties={() => onOpenProperties(selectedPart)}
             />
-          )}
-        </svg>
-      </div>
+
+            {selectedPart && (
+              <PartControlOverlay
+                part={selectedPart}
+                isSimulating={isSimulating}
+                onDelete={() => deletePart(selectedPart.id)}
+                onOpenProperties={() => onOpenProperties(selectedPart)}
+              />
+            )}
+          </g>
+        </g>
+      </svg>
     </div>
   );
 }
 
-function PartControlOverlay({part, isSimulating, onDelete, onOpenProperties}: PartControlOverlayProps) {
+function PartControlOverlay({ part, isSimulating, onDelete, onOpenProperties }: PartControlOverlayProps) {
   const def = partDefinitions[part.type];
   if (!def) return null;
 
