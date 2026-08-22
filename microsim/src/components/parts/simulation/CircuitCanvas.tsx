@@ -9,6 +9,12 @@ import { GRID, type PartInstance, type PinRef } from "../../../types/types";
 
 const CANVAS_VIEW_WIDTH = 1200;
 const CANVAS_VIEW_HEIGHT = 800;
+const WORLD_WIDTH = 6000;
+const WORLD_HEIGHT = 4000;
+const BASE_SCALE = WORLD_WIDTH / CANVAS_VIEW_WIDTH; // 5
+
+export const WORLD_OFFSET_X = (CANVAS_VIEW_WIDTH - WORLD_WIDTH) / 2;
+export const WORLD_OFFSET_Y = (CANVAS_VIEW_HEIGHT - WORLD_HEIGHT) / 2;
 
 const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04"];
 const SNAP_DISTANCE = 16;
@@ -104,11 +110,11 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
-    const scaleX = CANVAS_VIEW_WIDTH / rect.width;
-    const scaleY = CANVAS_VIEW_HEIGHT / rect.height;
+    const scaleX = WORLD_WIDTH / rect.width;   // CHANGED: was CANVAS_VIEW_WIDTH
+    const scaleY = WORLD_HEIGHT / rect.height; 
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
+      x: (e.clientX - rect.left) * scaleX + WORLD_OFFSET_X, // CHANGED: + offset
+      y: (e.clientY - rect.top) * scaleY + WORLD_OFFSET_Y,  // CHANGED: + offset
     };
   }
 
@@ -269,6 +275,7 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
       waypoints: draftWaypoints,
     };
   }, [pendingWireStart, cursor, parts, draftWaypoints]);
+  
 
   function renderPart(part: PartInstance) {
     const Component = partComponentRegistry[part.type];
@@ -315,13 +322,13 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
     >
       <div
         className="w-full h-full origin-center transition-transform duration-75 ease-out"
-        style={{
-          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel})`,
-        }}
+       style={{
+        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel * BASE_SCALE})`, // CHANGED
+      }}
       >
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${CANVAS_VIEW_WIDTH} ${CANVAS_VIEW_HEIGHT}`}
+          viewBox={`${WORLD_OFFSET_X} ${WORLD_OFFSET_Y} ${WORLD_WIDTH} ${WORLD_HEIGHT}`} // CHANGED
           className="w-full h-full bg-[#161616]"
           onClick={handleBackgroundClick}
         >
@@ -331,7 +338,13 @@ export function CircuitCanvas({zoomLevel, panOffset, setPanOffset, isSimulating,
             </pattern>
           </defs>
 
-          <rect width={CANVAS_VIEW_WIDTH} height={CANVAS_VIEW_HEIGHT} fill="url(#grid-dots)" />
+          <rect
+            x={WORLD_OFFSET_X}   
+            y={WORLD_OFFSET_Y}    
+            width={WORLD_WIDTH}   
+            height={WORLD_HEIGHT} 
+            fill="url(#grid-dots)"
+          />
 
           {breadboardParts.map(renderPart)}
           {otherParts.map(renderPart)}

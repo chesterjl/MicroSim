@@ -5,9 +5,9 @@ import { CircuitCanvas } from "../components/parts/simulation/CircuitCanvas";
 import type { PartInstance } from "../types/types";
 import { PartsPalette } from "../components/parts/simulation/PartsPalette";
 import { ComponentPropertiesModal } from "../components/common/ComponentPropertiesModal";
-import { Navbar, type ViewMode } from "../components/common/Navbar";
+import SimulationNavbar, { type ViewMode } from "../components/common/SimulationNavbar";
 
-export function SimulatorPage({ onBackToHome }: { onBackToHome: () => void }) {
+export default function Simulator({ onBackToHome }: { onBackToHome: () => void }) {
   const parts = useCircuitStore((s) => s.parts);
   const addPart = useCircuitStore((s) => s.addPart);
   const running = useCircuitStore((s) => s.running);
@@ -41,7 +41,7 @@ export function SimulatorPage({ onBackToHome }: { onBackToHome: () => void }) {
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#121212]">
       {/* Extracted Navbar */}
-      <Navbar
+      <SimulationNavbar
         onBackToHome={onBackToHome}
         zoomLevel={zoomLevel}
         onZoom={handleZoom}
@@ -97,5 +97,3 @@ export function SimulatorPage({ onBackToHome }: { onBackToHome: () => void }) {
     </div>
   );
 }
-
-export default SimulatorPage;

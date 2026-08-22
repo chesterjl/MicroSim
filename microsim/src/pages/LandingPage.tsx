@@ -1,4 +1,5 @@
 import { assets } from "../assets/asset";
+import Navbar from "../components/common/Navbar";
 
 interface BoardOption {
   id: string;
@@ -46,24 +47,8 @@ export function LandingPage({
       {/* Background Grid Accent */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
 
-      {/* Header Bar */}
-      <header className="relative z-10 max-w-6xl mx-auto px-6 py-6 flex items-center justify-between border-b border-zinc-800/60">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-emerald-400 p-[1px] shadow-lg shadow-cyan-500/20">
-            <div className="h-full w-full bg-zinc-950 rounded-[7px] flex items-center justify-center font-black text-cyan-400 text-sm">
-              <img src={assets.chromeLogo}/>
-            </div>
-          </div>
-          <span className="font-bold tracking-tight text-lg text-white">
-            MicroSim
-          </span>
-        </div>
-        <span className="inline-flex items-center gap-2 text-xs font-mono px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          v1.0-beta
-        </span>
-      </header>
-
+      <Navbar />
+      
       <main className="relative z-10 max-w-5xl mx-auto px-6 pt-16 pb-24 flex flex-col items-center">
         {/* Hero Section */}
         <div className="text-center max-w-2xl mb-16">

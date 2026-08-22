@@ -1,15 +1,35 @@
-import { useState } from "react";
+// src/App.tsx
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { LandingPage } from "./pages/LandingPage";
-import { SimulatorPage } from "./pages/SimulatorPage";
-
-type View = "landing" | "simulator";
+import Community from "./pages/Community";
+import Simulator from "./pages/Simulator";
+import MyProject from "./pages/MyProject";
 
 export default function App() {
-  const [view, setView] = useState<View>("landing");
+  const navigate = useNavigate();
 
-  if (view === "simulator") {
-    return <SimulatorPage onBackToHome={() => setView("landing")} />;
-  }
-
-  return <LandingPage onSelectBoard={() => setView("simulator")} />;
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            onSelectBoard={(boardId) => navigate(`/simulator?board=${boardId}`)}
+          />
+        }
+      />
+      <Route
+        path="/community"
+        element={<Community />}
+      />
+      <Route
+        path="/simulator"
+        element={<Simulator onBackToHome={() => navigate("/")} />}
+      />
+      <Route
+        path="/my-projects"
+        element={<MyProject />}
+      />
+    </Routes>
+  );
 }

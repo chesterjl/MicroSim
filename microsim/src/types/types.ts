@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export const GRID = 10;
 
 export type PinElectricalType = "power" | "ground" | "digital" | "analog" | "passive";
@@ -46,3 +48,16 @@ export interface ResolvedPin extends PinRef {
   y: number;
   type: PinElectricalType;
 }
+
+export type BoardType =
+  | "all"
+  | "arduino"
+  | "esp32"
+  | "raspberry-pi";
+
+export interface FilterOption<T extends string> {
+  label: string;
+  value: T;
+  icon?: ReactNode;
+}
+
