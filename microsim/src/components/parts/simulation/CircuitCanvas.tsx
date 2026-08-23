@@ -41,6 +41,7 @@ interface PartControlOverlayProps {
 export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating, onOpenProperties }: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const worldGroupRef = useRef<SVGGElement>(null);
 
   const parts = useCircuitStore((s) => s.parts);
   const wires = useCircuitStore((s) => s.wires);
@@ -102,21 +103,26 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     }
   }, [isSimulating, pendingWireStart, cancelWire]);
 
-  function toSvgPoint(e: React.MouseEvent | MouseEvent) {
-    const svg = svgRef.current;
-    if (!svg) return { x: 0, y: 0 };
-    const rect = svg.getBoundingClientRect();
+ function toSvgPoint(e: React.MouseEvent | MouseEvent) {
+    const worldGroup = worldGroupRef.current;
 
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
+    if (!worldGroup) {
+      return { x: 0, y: 0 };
+    }
 
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    const matrix = worldGroup.getScreenCTM();
 
-    const worldX = (screenX - centerX - panOffset.x) / effectiveZoom + WORLD_WIDTH / 2;
-    const worldY = (screenY - centerY - panOffset.y) / effectiveZoom + WORLD_HEIGHT / 2;
+    if (!matrix) {
+      return { x: 0, y: 0 };
+    }
 
-    return { x: worldX, y: worldY };
+    const point = new DOMPoint(e.clientX, e.clientY);
+    const localPoint = point.matrixTransform(matrix.inverse());
+
+    return {
+      x: localPoint.x + WORLD_WIDTH / 2,
+      y: localPoint.y + WORLD_HEIGHT / 2,
+    };
   }
 
   function handlePartMouseDown(e: React.MouseEvent, partId: string) {
@@ -351,8 +357,8 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
         </defs>
 
         <g
+          ref={worldGroupRef}
           transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${effectiveZoom})`}
-          style={{ transformOrigin: "center" }}
         >
           <rect
             x={-WORLD_WIDTH / 2}

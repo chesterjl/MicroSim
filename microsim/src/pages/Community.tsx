@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CircuitBoard} from "lucide-react";
+import { CircuitBoard } from "lucide-react";
 import Navbar from "../components/common/Navbar";
 import FilterTab from "../components/common/FilterTab";
-import {MOCK_PROJECTS, type CommunityProject,} from "../utils/data";
 import ProjectCard from "../components/parts/project/ProjectCard";
 import type { BoardType } from "../types/types";
+import { COMMUNITY_PROJECTS, type Project } from "../utils/data";
+
+const CURRENT_USER_ID = 101;
 
 export default function Community() {
   const navigate = useNavigate();
@@ -16,7 +18,6 @@ export default function Community() {
 
   const toggleHeart = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
-
     setLikedProjects((prev) => ({
       ...prev,
       [projectId]: !prev[projectId],
@@ -26,42 +27,27 @@ export default function Community() {
   const filteredProjects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return MOCK_PROJECTS.filter((project) => {
-      const matchesCategory =
-        selectedCategory === "all" ||
-        project.boardType === selectedCategory;
+    return COMMUNITY_PROJECTS.filter((project) => {
+      const matchesCategory = selectedCategory === "all" || project.boardType === selectedCategory;
 
-      if (!query) {
-        return matchesCategory;
-      }
+      if (!query) return matchesCategory;
 
       const matchesSearch =
         project.title.toLowerCase().includes(query) ||
         project.description?.toLowerCase().includes(query) ||
         project.author.toLowerCase().includes(query) ||
-        project.boardLabel.toLowerCase().includes(query) ||
-        project.tags.some((tag) =>
-          tag.toLowerCase().includes(query)
-        );
+        project.boardLabel.toLowerCase().includes(query);
 
       return matchesCategory && matchesSearch;
     });
   }, [selectedCategory, searchQuery]);
 
-  const handleOpenProject = (
-    project: CommunityProject
-  ) => {
-    navigate("/simulation", {
-      state: {
-        code: project.code,
-        title: project.title,
-        boardLabel: project.boardLabel,
-      },
-    });
+  const handleOpenProject = (project: Project) => {
+    navigate(`/simulator?project=${project.id}`);
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-100 font-sans selection:bg-cyan-500 selection:text-black flex flex-col">
+    <div className="min-h-screen w-full bg-[#0b0c10] text-zinc-100 font-sans flex flex-col">
       <Navbar />
 
       <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
@@ -78,9 +64,9 @@ export default function Community() {
             </h1>
 
             <p className="max-w-2xl text-xs sm:text-sm leading-relaxed text-zinc-400">
-              Explore circuits shared by the MicroSim community,
-              discover different hardware setups, and open any
-              public project in the simulator.
+              Explore circuits shared by the MicroSim community, discover
+              different hardware setups, and open any public project in the
+              simulator.
             </p>
           </div>
         </section>
@@ -98,6 +84,7 @@ export default function Community() {
               <ProjectCard
                 key={project.id}
                 project={project}
+                currentUserId={CURRENT_USER_ID}
                 isLiked={!!likedProjects[project.id]}
                 onLike={toggleHeart}
                 onOpen={handleOpenProject}
@@ -115,8 +102,7 @@ export default function Community() {
             </h3>
 
             <p className="mt-1 max-w-sm text-xs leading-relaxed text-zinc-500">
-              Try another search term or choose a different
-              hardware category.
+              Try another search term or choose a different hardware category.
             </p>
           </div>
         )}

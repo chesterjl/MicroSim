@@ -39,22 +39,22 @@ export function buildOrthogonalPath(
   from: { x: number; y: number },
   to: { x: number; y: number },
   waypoints: { x: number; y: number }[] = []
-): string {
+) {
   const points = [from, ...waypoints, to];
-  if (points.length < 2) return "";
 
   let path = `M ${points[0].x} ${points[0].y}`;
 
-  for (let i = 0; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
+  for (let i = 1; i < points.length; i++) {
+    const previous = points[i - 1];
+    const current = points[i];
 
-    if (curr.x === next.x && curr.y === next.y) continue;
-
-    if (curr.x === next.x || curr.y === next.y) {
-      path += ` L ${next.x} ${next.y}`;
+    if (previous.x === current.x || previous.y === current.y) {
+      // Already aligned
+      path += ` L ${current.x} ${current.y}`;
     } else {
-      path += ` L ${next.x} ${curr.y} L ${next.x} ${next.y}`;
+      // Vertical first, then horizontal
+      path += ` L ${previous.x} ${current.y}`;
+      path += ` L ${current.x} ${current.y}`;
     }
   }
 

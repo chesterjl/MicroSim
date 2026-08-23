@@ -1,31 +1,9 @@
 import { useState } from "react";
-import {
-  Calendar,
-  Check,
-  CircuitBoard,
-  Cpu,
-  Eye,
-  Globe,
-  Lock,
-  Save,
-  Settings,
-  Trash2,
-  X,
-} from "lucide-react";
-
-export interface SavedProject {
-  id: string;
-  title: string;
-  description?: string;
-  boardType: string;
-  updatedAt: string;
-  isPublic: boolean;
-  componentsCount: number;
-  circuitImage?: string;
-}
+import {Calendar,Check,Cpu,Eye,Globe,Lock,Save,Settings,Trash2,X,} from "lucide-react";
+import type { Project } from "../../../utils/data";
 
 interface ProjectModalProps {
-  project: SavedProject;
+  project: Project;
   onClose: () => void;
   onSave: (updates: {
     title: string;
@@ -105,14 +83,7 @@ export default function ProjectModal({
 
                   <span className="inline-flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    {project.updatedAt}
-                  </span>
-
-                  <span className="text-zinc-700">•</span>
-
-                  <span className="inline-flex items-center gap-1">
-                    <CircuitBoard className="w-3 h-3" />
-                    {project.componentsCount} parts
+                    {project.createdAt}
                   </span>
                 </div>
               </div>

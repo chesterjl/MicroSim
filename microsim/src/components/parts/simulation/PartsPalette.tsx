@@ -8,7 +8,6 @@ interface PartOption {
   icon: string;
 }
 
-// Transparent SVG Data URIs for catalog icons
 const ICONS = {
   led: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 21V29" stroke="%23A1A1AA" stroke-width="2" stroke-linecap="round"/><path d="M20 21V28" stroke="%2371717A" stroke-width="2" stroke-linecap="round"/><path d="M10 20H22V21H10V20Z" fill="%2352525B"/><path d="M9 14C9 10.134 12.134 7 16 7C19.866 7 23 10.134 23 14V20H9V14Z" fill="%23EF4444"/><path d="M8 19.5C8 19.2239 8.22386 19 8.5 19H23.5C23.7761 19 24 19.2239 24 19.5V20.5C24 20.7761 23.7761 21 23.5 21H8.5C8.22386 21 8 20.7761 8 20.5V19.5Z" fill="%23DC2626"/><path d="M12 10.5C13.1 9.5 14.5 9 16 9" stroke="%23FFAAAA" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/></svg>`,
   resistor: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 16H8L11 8L15 24L19 8L23 24L26 16H30" stroke="%23F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -60,7 +59,7 @@ export function PartsPalette() {
 
   const handleSelectPart = (type: string) => {
     // Spawn new parts in canvas center area
-    addPart(type, 400 + Math.random() * 40, 300 + Math.random() * 40);
+    addPart(type, 3600 + Math.random() * 40, 3700 + Math.random() * 40);
     setIsOpen(false);
     setSearch("");
   };

@@ -1,31 +1,33 @@
-import type { SavedProject } from "../components/parts/project/ProjectModal";
-
-export interface CommunityProject {
+export interface Project {
   id: string;
   title: string;
   description?: string;
+  authorId: number;
   author: string;
   boardType: "arduino" | "esp32" | "raspberry-pi";
   boardLabel: string;
   hearts: number;
   circuitImage: string;
+  isPublic: boolean;
   code: string;
-  tags: string[];
+  createdAt: string;
 }
 
-export const MOCK_PROJECTS: CommunityProject[] = [
+export const COMMUNITY_PROJECTS: Project[] = [
   {
-    id: "proj-1",
+    id: "proj-c1",
     title: "Ultrasonic Distance Radar & Alarm",
     description:
       "Detects objects with an HC-SR04 sensor and visualizes proximity using an LED scale and dynamic Serial feedback.",
+    authorId: 101,
     author: "Chester Lauzon",
     boardType: "arduino",
     boardLabel: "Arduino Uno",
     hearts: 142,
     circuitImage:
       "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=800&q=80",
-    tags: ["Sensor", "HC-SR04", "LED"],
+    isPublic: true,
+    createdAt: "2026-08-15T10:00:00.000Z",
     code: `// Ultrasonic Distance Radar
 const int TRIG_PIN = 9;
 const int ECHO_PIN = 10;
@@ -55,19 +57,20 @@ void loop() {
   delay(200);
 }`,
   },
-
   {
-    id: "proj-2",
+    id: "proj-c2",
     title: "ESP32 WiFi Weather Station",
     description:
       "Fetches ambient sensor data and outputs real-time temperature telemetry over serial communication.",
+    authorId: 102,
     author: "Elena Rostova",
     boardType: "esp32",
     boardLabel: "ESP32 DevKit",
     hearts: 89,
     circuitImage:
       "https://images.unsplash.com/photo-1553406830-ef2513450d76?auto=format&fit=crop&w=800&q=80",
-    tags: ["IoT", "WiFi", "Telemetry"],
+    isPublic: true,
+    createdAt: "2026-08-18T14:30:00.000Z",
     code: `void setup() {
   Serial.begin(115200);
   Serial.println("Initializing ESP32 Station...");
@@ -78,19 +81,20 @@ void loop() {
   delay(1000);
 }`,
   },
-
   {
-    id: "proj-3",
+    id: "proj-c3",
     title: "Raspberry Pi Pico Servo Wave Generator",
     description:
       "Precise PWM signal generation driving multi-servo motors with smooth Interpolated easing curves.",
+    authorId: 103,
     author: "DevLab99",
     boardType: "raspberry-pi",
     boardLabel: "Raspberry Pi Pico",
     hearts: 215,
     circuitImage:
       "https://images.unsplash.com/photo-1608564697071-ddf911d81370?auto=format&fit=crop&w=800&q=80",
-    tags: ["MicroPython", "PWM", "Robotics"],
+    isPublic: true,
+    createdAt: "2026-08-20T09:15:00.000Z",
     code: `from machine import Pin, PWM
 import time
 
@@ -102,19 +106,20 @@ while True:
         pwm.duty_u16(duty)
         time.sleep(0.01)`,
   },
-
   {
-    id: "proj-4",
+    id: "proj-c4",
     title: "RGB Potentiometer Dimmer Matrix",
     description:
       "Smooth analog voltage sampling mapped across 3 potentiometers controlling multi-color LED output.",
+    authorId: 104,
     author: "Marcus Vance",
     boardType: "arduino",
     boardLabel: "Arduino Uno",
     hearts: 64,
     circuitImage:
       "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
-    tags: ["Analog", "Potentiometer", "PWM"],
+    isPublic: true,
+    createdAt: "2026-08-21T18:45:00.000Z",
     code: `void setup() {
   pinMode(A0, INPUT);
 }
@@ -125,19 +130,19 @@ void loop() {
   delay(50);
 }`,
   },
-
-  // Example project without a description.
-  // You can remove this if you don't need it.
   {
-    id: "proj-5",
+    id: "proj-c5",
     title: "Basic LED Controller",
+    description: "Simple single-LED blinking circuit with standardized delays.",
+    authorId: 105,
     author: "CircuitLab",
     boardType: "arduino",
     boardLabel: "Arduino Uno",
     hearts: 31,
     circuitImage:
       "https://images.unsplash.com/photo-1553406830-ef2513450d76?auto=format&fit=crop&w=800&q=80",
-    tags: ["LED", "Digital"],
+    isPublic: true,
+    createdAt: "2026-08-22T11:20:00.000Z",
     code: `const int LED_PIN = 13;
 
 void setup() {
@@ -154,45 +159,94 @@ void loop() {
   },
 ];
 
-
-export const INITIAL_PROJECTS: SavedProject[] = [
+export const MY_PROJECTS: Project[] = [
   {
-    id: "proj-1",
+    id: "my-proj-1",
     title: "Obstacle Avoidance Robot",
     description:
       "4WD chassis controller using HC-SR04 ultrasonic sensor and L298N motor driver module.",
-    boardType: "Arduino Uno R3",
-    updatedAt: "2 hours ago",
-    isPublic: true,
-    componentsCount: 5,
+    authorId: 101,
+    author: "Chester Lauzon",
+    boardType: "arduino",
+    boardLabel: "Arduino Uno",
+    hearts: 12,
     circuitImage:
       "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=600&q=80",
+    isPublic: true,
+    createdAt: "2026-08-22T22:00:00.000Z",
+    code: `// Obstacle Avoidance Controller
+const int TRIG = 9;
+const int ECHO = 10;
+
+void setup() {
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+}
+
+void loop() {
+  // Avoidance logic here
+}`,
   },
   {
-    id: "proj-2",
+    id: "my-proj-2",
     title: "4DOF Manipulator Arm",
-    boardType: "Arduino Uno R3",
-    updatedAt: "Yesterday",
+    description: "Multi-servo robotic arm controller with position kinemactics.",
+    authorId: 101,
+    author: "Chester Lauzon",
+    boardType: "arduino",
+    boardLabel: "Arduino Uno",
+    hearts: 5,
+    circuitImage:
+      "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
     isPublic: false,
-    componentsCount: 8,
+    createdAt: "2026-08-21T15:30:00.000Z",
+    code: `#include <Servo.h>
+
+Servo base;
+void setup() {
+  base.attach(9);
+}
+
+void loop() {
+  base.write(90);
+}`,
   },
   {
-    id: "proj-3",
+    id: "my-proj-3",
     title: "Smart Temp Monitor",
     description:
       "DHT11 telemetry logger with 16x2 I2C LCD readout and status alert LEDs.",
-    boardType: "ESP32",
-    updatedAt: "3 days ago",
+    authorId: 101,
+    author: "Chester Lauzon",
+    boardType: "esp32",
+    boardLabel: "ESP32 DevKit",
+    hearts: 8,
+    circuitImage:
+      "https://images.unsplash.com/photo-1553406830-ef2513450d76?auto=format&fit=crop&w=800&q=80",
     isPublic: true,
-    componentsCount: 4,
+    createdAt: "2026-08-19T08:00:00.000Z",
+    code: `void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+  // Read sensor
+}`,
   },
   {
-    id: "proj-4",
+    id: "my-proj-4",
     title: "Smart PIN Door Lock",
     description: "4x4 Keypad interface connected to servo lock latch.",
-    boardType: "Raspberry Pi",
-    updatedAt: "4 months ago",
+    authorId: 101,
+    author: "Chester Lauzon",
+    boardType: "raspberry-pi",
+    boardLabel: "Raspberry Pi Pico",
+    hearts: 2,
+    circuitImage:
+      "https://images.unsplash.com/photo-1608564697071-ddf911d81370?auto=format&fit=crop&w=800&q=80",
     isPublic: false,
-    componentsCount: 6,
+    createdAt: "2026-04-10T12:00:00.000Z",
+    code: `import time
+print("Security System Active")`,
   },
 ];
