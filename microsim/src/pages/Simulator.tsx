@@ -19,12 +19,11 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
 
   const hasInitializedArduino = useRef(false);
 
-  // Strictly safeguard single initial Arduino instantiation
   useEffect(() => {
     if (!hasInitializedArduino.current) {
       hasInitializedArduino.current = true;
       if (!parts.some((p) => p.type === "arduino-uno")) {
-        addPart("arduino-uno", 3900, 3800);
+        addPart("arduino-uno", 4200, 4000);
       }
     }
   }, [parts, addPart]);

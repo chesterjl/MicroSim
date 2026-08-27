@@ -49,7 +49,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   const selectedPartId = useCircuitStore((s) => s.selectedPartId);
   const pendingWireStart = useCircuitStore((s) => s.pendingWireStart);
   const draftWaypoints = useCircuitStore((s) => s.draftWaypoints);
-
+  
   const movePart = useCircuitStore((s) => s.movePart);
   const selectPart = useCircuitStore((s) => s.selectPart);
   const deletePart = useCircuitStore((s) => s.deletePart);
@@ -304,7 +304,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   function renderPart(part: PartInstance) {
     const Component = partComponentRegistry[part.type];
     if (!Component) return null;
-
+    
     const def = partDefinitions[part.type];
     const pinStates: Record<string, ReturnType<typeof netlist.getPinState>> = {};
     if (def) {

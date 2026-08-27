@@ -4,7 +4,7 @@ const ARDUINO_WIDTH = 32;
 const ARDUINO_HEIGHT = 22; 
 
 export const DEFAULT_ULTRASONIC_DISTANCE_CM = 50;
-  
+
 function evenlySpaced(count: number, span: number, start: number): number[] {
   const step = span / count;
   return Array.from({ length: count }, (_, i) => start + step * (i + 0.5));
@@ -15,7 +15,6 @@ function buildArduinoPins(): Pin[] {
   const halfW = ARDUINO_WIDTH / 2;
   const halfH = ARDUINO_HEIGHT / 2;
 
-  // Top edge, left to right, roughly matching a real Uno's silkscreen.
   const topLabels = ["AREF", "GND", "13", "12", "~11", "~10", "~9", "8", "7", "~6", "~5", "4", "~3", "2", "TX", "RX"];
   const topXs = evenlySpaced(topLabels.length, ARDUINO_WIDTH - 2, -halfW + 1);
   topLabels.forEach((label, i) => {
@@ -33,7 +32,6 @@ function buildArduinoPins(): Pin[] {
     }
   });
 
-  // Bottom edge: power pins, then analog pins A0-A5.
   const bottomLabels = ["RESET", "3V3", "5V", "GND", "GND", "VIN", "A0", "A1", "A2", "A3", "A4", "A5"];
   const bottomXs = evenlySpaced(bottomLabels.length, ARDUINO_WIDTH - 2, -halfW + 1);
   bottomLabels.forEach((label, i) => {
@@ -55,7 +53,6 @@ function buildArduinoPins(): Pin[] {
   return pins;
 }
 
-// Helper to generate mini breadboard pins (17 columns, no power rails)
 function buildMiniBreadboardPins(): Pin[] {
   const pins: Pin[] = [];
   const cols = 17;
@@ -65,32 +62,17 @@ function buildMiniBreadboardPins(): Pin[] {
     const colNum = c + 1;
     const x = colOffset + c;
 
-    // Top section: Rows A to E
     ["a", "b", "c", "d", "e"].forEach((row, i) => {
-      pins.push({
-        id: `col_${colNum}_${row}`,
-        label: `${colNum}${row.toUpperCase()}`,
-        x,
-        y: -5 + i,
-        type: "passive",
-      });
+      pins.push({ id: `col_${colNum}_${row}`, label: `${colNum}${row.toUpperCase()}`, x, y: -5 + i, type: "passive" });
     });
 
-    // Bottom section: Rows F to J
     ["f", "g", "h", "i", "j"].forEach((row, i) => {
-      pins.push({
-        id: `col_${colNum}_${row}`,
-        label: `${colNum}${row.toUpperCase()}`,
-        x,
-        y: 1 + i,
-        type: "passive",
-      });
+      pins.push({ id: `col_${colNum}_${row}`, label: `${colNum}${row.toUpperCase()}`, x, y: 1 + i, type: "passive" });
     });
   }
   return pins;
 }
 
-// Helper to generate half (30 cols) and full (63 cols) breadboard pins with power rails
 function buildStandardBreadboardPins(cols: number): Pin[] {
   const pins: Pin[] = [];
   const colOffset = -Math.floor(cols / 2);
@@ -99,33 +81,17 @@ function buildStandardBreadboardPins(cols: number): Pin[] {
     const colNum = c + 1;
     const x = colOffset + c;
 
-    // Top Power Rails
     pins.push({ id: `pwr_top_plus_${colNum}`, label: `+${colNum}`, x, y: -8, type: "power" });
     pins.push({ id: `pwr_top_minus_${colNum}`, label: `-${colNum}`, x, y: -7, type: "ground" });
 
-    // Terminal Strip Top: Rows A to E
     ["a", "b", "c", "d", "e"].forEach((row, i) => {
-      pins.push({
-        id: `col_${colNum}_${row}`,
-        label: `${colNum}${row.toUpperCase()}`,
-        x,
-        y: -5 + i,
-        type: "passive",
-      });
+      pins.push({ id: `col_${colNum}_${row}`, label: `${colNum}${row.toUpperCase()}`, x, y: -5 + i, type: "passive" });
     });
 
-    // Terminal Strip Bottom: Rows F to J
     ["f", "g", "h", "i", "j"].forEach((row, i) => {
-      pins.push({
-        id: `col_${colNum}_${row}`,
-        label: `${colNum}${row.toUpperCase()}`,
-        x,
-        y: 1 + i,
-        type: "passive",
-      });
+      pins.push({ id: `col_${colNum}_${row}`, label: `${colNum}${row.toUpperCase()}`, x, y: 1 + i, type: "passive" });
     });
 
-    // Bottom Power Rails
     pins.push({ id: `pwr_bot_plus_${colNum}`, label: `+${colNum}`, x, y: 7, type: "power" });
     pins.push({ id: `pwr_bot_minus_${colNum}`, label: `-${colNum}`, x, y: 8, type: "ground" });
   }
@@ -219,6 +185,7 @@ export const partDefinitions: Record<string, PartDefinition> = {
     ],
     defaultProperties: { voltage: 9 },
   },
+
   potentiometer: {
     type: "potentiometer",
     displayName: "Potentiometer",
@@ -234,19 +201,13 @@ export const partDefinitions: Record<string, PartDefinition> = {
       maxResistance: 10000,
     },
   },
+
   "ultrasonic-hcsr04": {
     type: "ultrasonic-hcsr04",
     displayName: "Ultrasonic Sensor (HC-SR04)",
     widthUnits: 16,
     heightUnits: 10,
     pins: [
-      // Left to right, matching the real board's silkscreen order.
-      // FIXED: x/y are whole grid-unit numbers now (were -4.5/-1.5/1.5/4.5
-      // and y:5.5 -- those .5 fractions could never land on a breadboard
-      // hole, since every hole sits at a whole multiple of GRID and a
-      // part's position always snaps to whole multiples too). 4-unit
-      // spacing between adjacent pins keeps everything on-grid while still
-      // being wider than the original cramped 2-unit spacing.
       { id: "vcc", label: "VCC", x: -6, y: 5, type: "passive" },
       { id: "trig", label: "TRIG", x: -2, y: 5, type: "digital" },
       { id: "echo", label: "ECHO", x: 2, y: 5, type: "digital" },
@@ -254,32 +215,141 @@ export const partDefinitions: Record<string, PartDefinition> = {
     ],
     defaultProperties: { distanceCm: DEFAULT_ULTRASONIC_DISTANCE_CM, detectionThresholdCm: 100 },
   },
+  
+  "active-buzzer": {
+    type: "active-buzzer",
+    displayName: "Active Buzzer",
+    widthUnits: 10,
+    heightUnits: 10,
+    pins: [
+      {
+        id: "vcc",
+        label: "VCC",
+        x: -1.5,
+        y: 5,
+        type: "power",
+      },
+      {
+        id: "gnd",
+        label: "GND",
+        x: 1.5,
+        y: 5,
+        type: "ground",
+      },
+    ],
+    defaultProperties: {
+      beeping: false,
+    },
+  },
+
+  "passive-buzzer": {
+    type: "passive-buzzer",
+    displayName: "Passive Buzzer",
+    widthUnits: 10,
+    heightUnits: 10,
+    pins: [
+      {
+        id: "signal",
+        label: "SIG",
+        x: -1.5,
+        y: 5,
+        type: "digital",
+      },
+      {
+        id: "gnd",
+        label: "GND",
+        x: 1.5,
+        y: 5,
+        type: "ground",
+      },
+    ],
+    defaultProperties: {
+      beeping: false,
+      frequency: 0,
+    },
+  },
+
+  "servo-mg90": {
+    type: "servo-mg90",
+    displayName: "Servo MG90",
+    widthUnits: 12,
+    heightUnits: 20,
+    pins: [
+      {
+        id: "signal",
+        label: "SIG",
+        x: -2.5,
+        y: -10,
+        type: "digital",
+      },
+      {
+        id: "vcc",
+        label: "VCC",
+        x: 0,
+        y: -10,
+        type: "power",
+      },
+      {
+        id: "gnd",
+        label: "GND",
+        x: 2.5,
+        y: -10,
+        type: "ground",
+      },
+    ],
+    defaultProperties: {
+      angle: 90,
+      minAngle: 0,
+      maxAngle: 180,
+    },
+  },
+
   "lcd-16x2-i2c": {
     type: "lcd-16x2-i2c",
-    displayName: "LCD 16x2 (I2C)",
-    widthUnits: 18,
-    heightUnits: 8,
+    displayName: "LCD 16x2 I2C",
+    widthUnits: 36,
+    heightUnits: 12,
     pins: [
-      // Left edge, top to bottom, matching the real module's header order.
-      // Whole grid-unit values only (learned that the hard way with the
-      // ultrasonic sensor) -- x is 10 units from center, slightly past the
-      // board's own edge (halfW = 9) so the pins visibly protrude, like the
-      // real module's header does.
-      { id: "gnd", label: "GND", x: -10, y: -3, type: "passive" },
-      { id: "vcc", label: "VCC", x: -10, y: -1, type: "passive" },
-      { id: "sda", label: "SDA", x: -10, y: 1, type: "digital" },
-      { id: "scl", label: "SCL", x: -10, y: 3, type: "digital" },
+      {
+        id: "vcc",
+        label: "VCC",
+        x: -18,
+        y: -4,
+        type: "power",
+      },
+      {
+        id: "gnd",
+        label: "GND",
+        x: -18,
+        y: -1,
+        type: "ground",
+      },
+      {
+        id: "sda",
+        label: "SDA",
+        x: -18,
+        y: 2,
+        type: "digital",
+      },
+      {
+        id: "scl",
+        label: "SCL",
+        x: -18,
+        y: 5,
+        type: "digital",
+      },
     ],
-    defaultProperties: {},
+    defaultProperties: {
+      address: 0x27,
+      cols: 16,
+      rows: 2,
+      backlight: true,
+    },
   },
+
 };
 
-export function createPartInstance(
-  type: string,
-  x: number,
-  y: number,
-  idSuffix: string
-) {
+export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {
   const def = partDefinitions[type];
   if (!def) throw new Error(`Unknown part type: ${type}`);
   return {

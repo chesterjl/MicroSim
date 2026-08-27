@@ -1,11 +1,35 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import { CPU, avrInstruction, portBConfig, portDConfig, AVRUSART, AVRIOPort, AVRTimer, timer0Config, timer1Config, timer2Config, AVRADC, adcConfig, usart0Config, PinState } from "avr8js";
+import {
+  CPU,
+  avrInstruction,
+  portBConfig,
+  portDConfig,
+  AVRUSART,
+  AVRIOPort,
+  AVRTimer,
+  timer0Config,
+  timer1Config,
+  timer2Config,
+  AVRADC,
+  adcConfig,
+  usart0Config,
+  AVRTWI,
+  twiConfig,
+  PinState,
+} from "avr8js";
 import type { PartInstance, PinRef, Wire } from "../types/types";
 import { createPartInstance } from "../config/partDefinitions";
 import { buildNetlist } from "../engine/netlist";
 import type { Netlist } from "../engine/netlist";
 import { DEFAULT_SKETCH } from "../constants/constant";
+import { createI2CBus, createHd44780Device } from "../engine/i2cLcdDevice";
+import type { I2CDevice } from "../engine/i2cLcdDevice";
+
+interface LcdScreenState {
+  lines: [string, string];
+  backlightOn: boolean;
+}
 
 interface CircuitState {
   parts: PartInstance[];
@@ -14,12 +38,13 @@ interface CircuitState {
   pendingWireStart: PinRef | null;
   connectPins: (a: PinRef, b: PinRef) => void;
   draftWaypoints: { x: number; y: number }[];
-  
+
   code: string;
   running: boolean;
   runToken: number;
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>;
   consoleLog: string[];
+  lcdScreens: Record<string, LcdScreenState>;
 
   addPart: (type: string, x: number, y: number) => void;
   movePart: (id: string, x: number, y: number) => void;
@@ -50,7 +75,7 @@ async function compileSketch(code: string): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
   });
-  
+
   const data = await response.json();
   if (!data.success) {
     throw new Error(data.error);
@@ -78,30 +103,15 @@ function getPortAndBit(pin: number, portB: AVRIOPort, portD: AVRIOPort): { port:
   return pin <= 7 ? { port: portD, bit: pin } : { port: portB, bit: pin - 8 };
 }
 
-/**
- * A device that lives "outside" the AVR chip and needs to react to /
- * drive pin state as the CPU runs -- an ultrasonic sensor's echo timing,
- * a debounced button, a DHT11's single-wire protocol, a servo's expected
- * feedback pulse, etc. `claimedPins` lets the generic per-frame input
- * sync below automatically skip any pin a device is already managing at
- * finer resolution, without executeFrame needing to know that specific
- * device type exists.
- */
 interface ExternalDevice {
   claimedPins: number[];
   update: (cpu: CPU) => void;
 }
 
-/**
- * HC-SR04 ultrasonic sensor. Trigger detection uses the port's own change
- * listener (fires exactly when the compiled code writes the pin -- already
- * cycle-accurate). The pulse itself is a small state machine:
- * idle --(trig rising edge)--> pending --(~150us)--> echoing --(distance-based duration)--> idle
- */
 function createUltrasonicDevice(
   portB: AVRIOPort,
   portD: AVRIOPort,
-  partId: string, 
+  partId: string,
   trigPin: number,
   echoPin: number,
   powered: boolean
@@ -153,17 +163,11 @@ function createUltrasonicDevice(
           state = "echoing";
           stateChangedAtCycle = cpu.cycles;
 
-
-          // A change made mid-pulse now correctly waits for the NEXT
-          // trigger instead of corrupting the pulse already in flight.
           const livePart = useCircuitStore.getState().parts.find((p) => p.id === partId);
           echoDistanceCm = Math.max(0, Math.min(400, Number(livePart?.properties?.distanceCm ?? 400)));
-
         }
       } else if (state === "echoing") {
-          // now just uses the value captured once when this pulse started
-         const pulseCycles = Math.round(echoDistanceCm * 58 * 16);
-
+        const pulseCycles = Math.round(echoDistanceCm * 58 * 16);
         if (cpu.cycles - stateChangedAtCycle >= pulseCycles) {
           setEcho(false);
           state = "idle";
@@ -173,13 +177,6 @@ function createUltrasonicDevice(
   };
 }
 
-/**
- * Discovers every part in the circuit that needs its own ExternalDevice
- * and builds them. Adding a new sensor type later means adding one
- * `createXDevice(...)` factory plus one branch here -- executeFrame's main
- * loop never needs to change again, since it just iterates whatever comes
- * back from this function.
- */
 function setupExternalDevices(
   portB: AVRIOPort,
   portD: AVRIOPort,
@@ -187,12 +184,6 @@ function setupExternalDevices(
   wires: Wire[],
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>
 ): ExternalDevice[] {
-  // One-time netlist build purely to resolve wiring topology -- which
-  // Arduino pin each device's pins actually land on, and whether each is
-  // powered. Correctly accounts for breadboard internal bridging (columns,
-  // rails), unlike a raw search through `wires`, which only sees direct
-  // part-to-part wires and misses anything routed through a breadboard --
-  // which is how these are virtually always wired in practice.
   const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
   const arduinoPart = parts.find((p) => p.type === "arduino-uno");
   if (!arduinoPart) return [];
@@ -206,7 +197,6 @@ function setupExternalDevices(
       if (trigPin === null || echoPin === null) continue;
 
       const powered = wiringNetlist.isPowered(part.id);
-      // Pass part.id instead of part
       devices.push(createUltrasonicDevice(portB, portD, part.id, trigPin, echoPin, powered));
     }
   }
@@ -215,14 +205,47 @@ function setupExternalDevices(
 }
 
 /**
- * Forces external circuit state into any Arduino pin currently configured
- * as INPUT (e.g. a pushbutton, or anything else read via digitalRead())
- * that ISN'T already claimed by an ExternalDevice above. Without this,
- * digitalRead() only ever sees avr8js's own internal default -- it has no
- * way to know what your netlist says is actually wired to that pin. Runs
- * once per frame; that's plenty for something like a button, which
- * doesn't need microsecond timing the way an ultrasonic echo pulse does.
+ * Builds the I2C bus's device list -- currently just LCD screens, one per
+ * "lcd-16x2-i2c" part in the circuit that's actually powered (VCC + GND
+ * reach real power/ground). Unlike the ultrasonic sensor, I2C's SDA/SCL
+ * are the ATmega328's FIXED hardware pins (A4/A5) -- AVRTWI talks to
+ * those registers directly, not through a generic port pin the way
+ * digitalWrite()-driven pins do. So we don't need to resolve which
+ * Arduino pin SDA/SCL land on the way we did for trig/echo; we only need
+ * to know the device is powered.
+ *
+ * Known simplification: this doesn't verify your drawn wires actually go
+ * to A4/A5 specifically -- on real hardware wiring SDA/SCL to the wrong
+ * pins would simply not work, but our AVRTWI here isn't routed through
+ * our own netlist at all, so any powered LCD will respond on the bus
+ * regardless of which pins you visually wired SDA/SCL to. Good enough
+ * for now; flag if this ever needs stricter validation.
  */
+function setupLcdI2CDevices(
+  parts: PartInstance[],
+  wires: Wire[],
+  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
+  onScreenChange: (partId: string, lines: [string, string], backlightOn: boolean) => void
+): I2CDevice[] {
+  const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
+  const devices: I2CDevice[] = [];
+
+  for (const part of parts) {
+    if (part.type !== "lcd-16x2-i2c") continue;
+    const powered = wiringNetlist.isPowered(part.id);
+    if (!powered) continue;
+
+    const address = 0x27; // matches LiquidCrystal_I2C lcd(0x27, 16, 2) -- the standard default address
+    devices.push(
+      createHd44780Device(address, (lines, backlightOn) => {
+        onScreenChange(part.id, lines, backlightOn);
+      })
+    );
+  }
+
+  return devices;
+}
+
 function syncSimpleDigitalInputs(
   netlist: Netlist,
   arduinoId: string,
@@ -234,21 +257,17 @@ function syncSimpleDigitalInputs(
   for (let pin = 0; pin <= 13; pin++) {
     if (excludePins.has(pin)) continue;
 
-    // Read the DDR register bit directly to determine INPUT vs OUTPUT --
-    // more reliable than inferring it from PinState, since an externally
-    // forced INPUT pin can report the same High/Low state an OUTPUT pin
-    // would.
     let isOutput: boolean;
     if (pin <= 7) {
-      isOutput = (cpu.data[0x0a] & (1 << pin)) !== 0; // DDRD
+      isOutput = (cpu.data[0x0a] & (1 << pin)) !== 0;
     } else {
-      isOutput = (cpu.data[0x04] & (1 << (pin - 8))) !== 0; // DDRB
+      isOutput = (cpu.data[0x04] & (1 << (pin - 8))) !== 0;
     }
     if (isOutput) continue;
 
     const { port, bit } = getPortAndBit(pin, portB, portD);
     const netState = netlist.getPinState(arduinoId, `d${pin}`);
-    if (netState === "floating") continue; // let avr8js's own internal pull-up/float behavior stand
+    if (netState === "floating") continue;
     port.setPin(bit, netState === "high");
   }
 }
@@ -270,6 +289,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   runToken: 0,
   digitalPins: {},
   consoleLog: [],
+  lcdScreens: {},
 
   addPart: (type, x, y) => {
     const id = nanoid(6);
@@ -362,7 +382,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     get().stopSimulation();
 
     const token = get().runToken + 1;
-    set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"] });
+    set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"], lcdScreens: {} });
 
     const pushLog = (line: string) => set((s) => ({ consoleLog: [...s.consoleLog.slice(-99), line] }));
 
@@ -380,7 +400,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const portB = new AVRIOPort(cpu, portBConfig);
       const portD = new AVRIOPort(cpu, portDConfig);
 
-      // Hardware timers -- enable millis(), delay(), and PWM output.
       new AVRTimer(cpu, timer0Config);
       new AVRTimer(cpu, timer1Config);
       new AVRTimer(cpu, timer2Config);
@@ -396,6 +415,100 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
         initialState.digitalPins
       );
       const claimedPins = new Set(externalDevices.flatMap((d) => d.claimedPins));
+
+      // --- I2C / LCD setup ---------------------------------------------
+      const lcdI2CDevices = setupLcdI2CDevices(
+        initialState.parts,
+        initialState.wires,
+        initialState.digitalPins,
+        (partId, lines, backlightOn) => {
+          set((s) => ({
+            lcdScreens: { ...s.lcdScreens, [partId]: { lines, backlightOn } },
+          }));
+        }
+      );
+
+      if (lcdI2CDevices.length > 0) {
+        const twi = new AVRTWI(cpu, twiConfig, 16000000);
+        
+        console.log(
+          "[I2C] TWI prototype:",
+          Object.getOwnPropertyNames(Object.getPrototypeOf(twi))
+        );
+
+        console.log(
+          "[I2C] TWI own keys:",
+          Object.keys(twi)
+        );
+
+        console.log(
+          "[I2C] TWI eventHandler:",
+          (twi as any).eventHandler
+        );
+        const bus = createI2CBus(lcdI2CDevices);
+
+
+
+        // TEMP diagnostics -- remove once confirmed working. These wrap
+        // the bus so we can see exactly what's happening on the very
+        // first test run: does connectToSlave ever fire, does the
+        // address match, do writeByte calls arrive at all.
+        const wrappedBus = {
+          start: (repeated: boolean) => {
+            console.log("[I2C] start", { repeated });
+
+            bus.start();
+
+            // VERY IMPORTANT:
+            twi.completeStart();
+          },
+
+          stop: () => {
+            console.log("[I2C] stop");
+
+            bus.stop();
+
+            twi.completeStop();
+          },
+
+          connectToSlave: (addr: number, write: boolean) => {
+            console.log("[I2C] connectToSlave", {
+              addr: addr.toString(16),
+              write,
+            });
+
+            const ack = bus.connectToSlave(addr, write);
+
+            console.log("[I2C] ACK:", ack);
+
+            // VERY IMPORTANT:
+            twi.completeConnect(ack);
+          },
+
+          writeByte: (value: number) => {
+            console.log("[I2C] writeByte", value.toString(16));
+
+            const ack = bus.writeByte(value);
+
+            twi.completeWrite(ack);
+          },
+
+          readByte: (ack: boolean) => {
+            console.log("[I2C] readByte", { ack });
+
+            const value = bus.readByte(ack);
+
+            twi.completeRead(value);
+          },
+        };
+
+        // TEMP: if TypeScript errors here, `eventHandler` isn't the real
+        // property name on AVRTWI in your installed version -- check
+        // `node -e "console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(require('avr8js').AVRTWI.prototype)))"`
+        // or your editor's autocomplete on `twi.` to find the real one.
+        (twi as unknown as { eventHandler: typeof wrappedBus }).eventHandler = wrappedBus;
+      }
+      // -------------------------------------------------------------------
 
       const updatePinState = () => {
         const nextPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }> = {};

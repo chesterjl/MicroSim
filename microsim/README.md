@@ -33,6 +33,8 @@ npm run dev
 - `src/config/partDefinitions.ts` — the "what a part IS" registry, including the (Static hardware specs & component metadata)
   programmatically-laid-out Arduino Uno header pins
 - `src/parts/*.tsx` — the "what a part LOOKS LIKE" — one SVG component per part
+- `src/components/parts/{part_name}/{part_name}.tsx` — This is a modal component for each component that has properties to change like (led colors, resistor ohms value,. etc.)
+- `src/components/common/ComponentPropertiesModal.tsx` — this is a parent folder for the modal component for each part this is what we call and inside this file is where we call the exact modal component for each parts so we dont import 1 by 1 inside tha CircuitCanvas.tsx the modal component.
 - `src/parts/registry.tsx` — maps a part type string to its component
 - `src/utils/geometry.ts` — rotation-aware pin position math, grid snapping (Math and canvas helper functions)
 - `src/engine/netlist.ts` — union-find netlist builder; resolves HIGH/LOW/floating (Core simulation & electrical calculations)

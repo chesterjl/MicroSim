@@ -20,7 +20,7 @@ export function HcSr04Part({
   const distanceCm = Number(part.properties?.distanceCm ?? DEFAULT_ULTRASONIC_DISTANCE_CM);
   const thresholdCm = Number(part.properties?.detectionThresholdCm ?? 100);
   const objectDetected = distanceCm <= thresholdCm;
-
+  
   const halfW = (def.widthUnits * GRID) / 2;
   const bodyTop = -3.5 * GRID;
   const bodyBottom = 2.5 * GRID;

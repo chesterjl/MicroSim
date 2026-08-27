@@ -10,7 +10,7 @@ interface Props {
 export function BatteryModal({ part, onClose }: Props) {
   const updatePartProperties = useCircuitStore((s) => s.updatePartProperties);
   const livePart = useCircuitStore((s) => s.parts.find((p) => p.id === part?.id));
-
+  
   const storeVoltage = (livePart?.properties?.voltage as number) ?? 9;
   const [localVoltage, setLocalVoltage] = useState<string>(String(storeVoltage));
 

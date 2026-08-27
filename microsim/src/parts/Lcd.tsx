@@ -3,6 +3,7 @@ import type { PartInstance } from "../types/types";
 import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
+import { useCircuitStore } from "../store/circuitStore";
 
 export function LcdPart({
   part,
@@ -20,13 +21,18 @@ export function LcdPart({
   const def = partDefinitions["lcd-16x2-i2c"];
   const powered = netlist?.isPowered(part.id) ?? false;
 
-  const halfW = (def.widthUnits * GRID) / 2; // 90
-  const halfH = (def.heightUnits * GRID) / 2; // 40
-  const headerEdgeX = -halfW; // where the pin header housing meets the board edge
+  const screen = useCircuitStore((s) => s.lcdScreens[part.id]);
+  const lines: [string, string] = screen?.lines ?? ["", ""];
+  const backlightOn = screen ? screen.backlightOn : powered;
+
+  // Calculates directly from widthUnits (36) and new reduced heightUnits (12)
+  const halfW = (def.widthUnits * GRID) / 2; // 18 * GRID
+  const halfH = (def.heightUnits * GRID) / 2; // 6 * GRID (Much shorter PCB)
+  const headerEdgeX = -halfW;
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-      {/* Green PCB */}
+      {/* Green PCB Base - Auto-scaled to new shorter height */}
       <rect
         x={-halfW}
         y={-halfH}
@@ -38,60 +44,84 @@ export function LcdPart({
         strokeWidth={selected ? 2.5 : 1.5}
       />
 
-      {/* Mounting holes, one per corner */}
+      {/* PCB Corner Mounting Holes */}
       {[
-        { x: -halfW + 12, y: -halfH + 12 },
-        { x: halfW - 12, y: -halfH + 12 },
-        { x: -halfW + 12, y: halfH - 12 },
-        { x: halfW - 12, y: halfH - 12 },
+        { x: -halfW + 10, y: -halfH + 10 },
+        { x: halfW - 10, y: -halfH + 10 },
+        { x: -halfW + 10, y: halfH - 10 },
+        { x: halfW - 10, y: halfH - 10 },
       ].map((hole, i) => (
         <g key={`hole-${i}`} transform={`translate(${hole.x}, ${hole.y})`}>
-          <circle r={5} fill="#c9c9c9" />
-          <circle r={3} fill="#0a3d24" />
+          <circle r={4.5} fill="#c9c9c9" />
+          <circle r={2.8} fill="#0a3d24" />
         </g>
       ))}
 
-      {/* Decorative I2C backpack header along the top -- not wired to anything */}
+      {/* Top Header Contact Pads */}
       {Array.from({ length: 16 }).map((_, i) => {
         const x = -halfW + 14 + i * ((halfW * 2 - 28) / 15);
-        return <rect key={i} x={x - 1.5} y={-halfH - 3} width={3} height={7} fill="#c9c9c9" />;
+        return <rect key={i} x={x - 1.5} y={-halfH - 2} width={3} height={5} fill="#c9c9c9" rx={0.5} />;
       })}
 
-      {/* Bezel */}
-      <rect x={-halfW + 20} y={-24} width={halfW * 2 - 40} height={48} rx={3} fill="#1a1a1a" />
-
-      {/* Screen -- backlight color reflects whether VCC+GND actually reach power/ground */}
+      {/* Dark Metal Bezel Framework */}
       <rect
-        x={-halfW + 28}
-        y={-16}
-        width={halfW * 2 - 56}
-        height={32}
-        fill={powered ? "#1d3f75" : "#0c1a2e"}
+        x={-halfW + 20}
+        y={-20}
+        width={halfW * 2 - 40}
+        height={40}
+        rx={2}
+        fill="#111827"
+        stroke="#1f2937"
+        strokeWidth={1}
       />
-      {powered && (
-        <rect x={-halfW + 28} y={-16} width={halfW * 2 - 56} height={32} fill="#2e6fd6" opacity={0.25} />
+
+      {/* Screen Display Glass */}
+      <rect
+        x={-halfW + 25}
+        y={-14}
+        width={halfW * 2 - 50}
+        height={28}
+        rx={1}
+        fill={backlightOn ? "#1e3a8a" : "#0f172a"}
+      />
+
+      {/* Backlight Glow Overlay */}
+      {backlightOn && (
+        <rect
+          x={-halfW + 25}
+          y={-14}
+          width={halfW * 2 - 50}
+          height={28}
+          rx={1}
+          fill="#3b82f6"
+          opacity={0.15}
+        />
       )}
 
-      {/* Faint 16x2 character-cell grid, purely decorative */}
-      {powered &&
-        Array.from({ length: 16 }).map((_, col) => (
-          <line
-            key={col}
-            x1={-halfW + 30 + col * ((halfW * 2 - 60) / 16)}
-            y1={-15}
-            x2={-halfW + 30 + col * ((halfW * 2 - 60) / 16)}
-            y2={15}
-            stroke="#3a5f9a"
-            strokeWidth={0.5}
-            opacity={0.4}
-          />
-        ))}
+      {/* LCD Text Rows */}
+      {backlightOn && (
+        <g style={{ pointerEvents: "none" }}>
+          {lines.map((line, row) => (
+            <text
+              key={row}
+              x={-halfW + 29}
+              y={row === 0 ? -3 : 8}
+              fontSize={11}
+              fontFamily="'Courier New', monospace"
+              fontWeight={700}
+              fill="#bfdbfe"
+              letterSpacing={0.8}
+            >
+              {line}
+            </text>
+          ))}
+        </g>
+      )}
 
-      {/* Pin header housing, left edge */}
-      <rect x={headerEdgeX - 10} y={-38} width={10} height={76} fill="#1c1c1c" />
+      {/* I2C Header Housing (Left Edge) */}
+      <rect x={headerEdgeX - 8} y={-halfH + 6} width={8} height={(halfH - 6) * 2} fill="#1c1c1c" rx={1} />
 
-      {/* Legs + labels for GND / VCC / SDA / SCL, printed ON the PCB so they
-          stay readable regardless of what the pins are wired into. */}
+      {/* Connection Leg Lines */}
       {def.pins.map((pin) => (
         <line
           key={`leg-${pin.id}`}
@@ -104,13 +134,14 @@ export function LcdPart({
         />
       ))}
 
+      {/* Pin Labels on PCB */}
       {def.pins.map((pin) => (
         <text
           key={`label-${pin.id}`}
-          x={headerEdgeX + 4}
-          y={pin.y * GRID + 3}
+          x={headerEdgeX + 3}
+          y={pin.y * GRID + 2.5}
           textAnchor="start"
-          fontSize={6}
+          fontSize={5.5}
           fontWeight={700}
           fill="#eafff2"
           fontFamily="monospace"
@@ -119,6 +150,7 @@ export function LcdPart({
         </text>
       ))}
 
+      {/* Interactive Pin Terminals */}
       {def.pins.map((pin) => (
         <PinDot
           key={pin.id}
