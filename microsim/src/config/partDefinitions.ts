@@ -222,24 +222,10 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 10,
     heightUnits: 10,
     pins: [
-      {
-        id: "vcc",
-        label: "VCC",
-        x: -1.5,
-        y: 5,
-        type: "power",
-      },
-      {
-        id: "gnd",
-        label: "GND",
-        x: 1.5,
-        y: 5,
-        type: "ground",
-      },
+      { id: "positive", label: "+", x: -1, y: 5, type: "passive" },
+      { id: "negative", label: "−", x: 1, y: 5, type: "passive" },
     ],
-    defaultProperties: {
-      beeping: false,
-    },
+    defaultProperties: { toneHz: 2500 }, // this buzzer's fixed internal pitch
   },
 
   "passive-buzzer": {
@@ -248,27 +234,12 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 10,
     heightUnits: 10,
     pins: [
-      {
-        id: "signal",
-        label: "SIG",
-        x: -1.5,
-        y: 5,
-        type: "digital",
-      },
-      {
-        id: "gnd",
-        label: "GND",
-        x: 1.5,
-        y: 5,
-        type: "ground",
-      },
+      { id: "positive", label: "+", x: -1, y: 5, type: "passive" },
+      { id: "negative", label: "−", x: 1, y: 5, type: "passive" },
     ],
-    defaultProperties: {
-      beeping: false,
-      frequency: 0,
-    },
+    defaultProperties: {},
   },
-
+  
   "servo-mg90": {
     type: "servo-mg90",
     displayName: "Servo MG90",
@@ -346,7 +317,7 @@ export const partDefinitions: Record<string, PartDefinition> = {
       backlight: true,
     },
   },
-
+  
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

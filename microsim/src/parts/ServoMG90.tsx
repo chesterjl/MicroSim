@@ -244,9 +244,6 @@ export function ServoMG90Part({
         />
       ))}
 
-      {/* =========================
-          Pin dots
-         ========================= */}
 
       {def.pins.map((pin) => (
         <PinDot

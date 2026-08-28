@@ -8,7 +8,6 @@ export function PassiveBuzzerPart({
   part,
   selected,
   pinStates,
-  netlist,
   onPinClick,
 }: {
   part: PartInstance;
@@ -18,8 +17,6 @@ export function PassiveBuzzerPart({
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }) {
   const def = partDefinitions["passive-buzzer"];
-
-  const beeping = Boolean(part.properties?.beeping);
 
   const bodyRadius = 4 * GRID;
   const pinY = 5 * GRID;
@@ -152,46 +149,6 @@ export function PassiveBuzzerPart({
       >
         −
       </text>
-
-      {/* Tone indication */}
-      {beeping && (
-        <>
-          <circle
-            cx={0}
-            cy={0}
-            r={4.35 * GRID}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth={1.1}
-            opacity={0.8}
-          />
-
-          <path
-            d={`
-              M ${4.7 * GRID} ${-1.4 * GRID}
-              Q ${5.8 * GRID} 0
-              ${4.7 * GRID} ${1.4 * GRID}
-            `}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth={1.1}
-            strokeLinecap="round"
-          />
-
-          <path
-            d={`
-              M ${5.4 * GRID} ${-2.3 * GRID}
-              Q ${7 * GRID} 0
-              ${5.4 * GRID} ${2.3 * GRID}
-            `}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth={0.9}
-            strokeLinecap="round"
-            opacity={0.75}
-          />
-        </>
-      )}
 
       {/* Pin dots - IMPORTANT: onClick is passed through */}
       {def.pins.map((pin) => (

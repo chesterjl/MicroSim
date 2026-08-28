@@ -40,6 +40,7 @@
     getPinState: (partId: string, pinId: string) => NetState;
     getPartBrightness: (partId: string) => number;
     isPowered: (partId: string) => boolean;
+    isActiveBuzzerSounding: (partId: string) => boolean;
     getAnalogVoltage: (partId: string, pinId: string) => number;
     getConnectedArduinoPin: (partId: string, pinId: string) => number | null;
   }
@@ -63,6 +64,7 @@
         getPinState: () => "floating",
         getPartBrightness: () => 0,
         isPowered: () => false,
+        isActiveBuzzerSounding: () => false,
         getAnalogVoltage: () => 0,
         getConnectedArduinoPin: () => null,
       };
@@ -230,6 +232,12 @@
       return netPower.has(vccRoot) && netGround.has(gndRoot);
     }
 
+    function isActiveBuzzerSoundingImpl(partId: string): boolean {
+      const posRoot = uf.find(pinKey(partId, "positive"));
+      const negRoot = uf.find(pinKey(partId, "negative"));
+      return resolveNetState(posRoot) === "high" && resolveNetState(negRoot) === "low";
+    }
+
     // Real voltage resolution, separate from the high/low/floating digital
     // abstraction above -- this is what feeds the ADC for analogRead().
     const netVoltageOverride = new Map<string, number>();
@@ -336,6 +344,7 @@
       getPinState: (partId, pinId) => resolveNetState(uf.find(pinKey(partId, pinId))),
       getPartBrightness: (partId) => calculatePartBrightness(partId),
       isPowered: (partId) => isPartPowered(partId),
+      isActiveBuzzerSounding: (partId) => isActiveBuzzerSoundingImpl(partId),
       getAnalogVoltage: (partId, pinId) => resolveNetVoltage(uf.find(pinKey(partId, pinId))),
       getConnectedArduinoPin: (partId, pinId) => getConnectedArduinoPinImpl(partId, pinId),
     };

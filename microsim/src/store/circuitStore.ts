@@ -1,23 +1,6 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
-import {
-  CPU,
-  avrInstruction,
-  portBConfig,
-  portDConfig,
-  AVRUSART,
-  AVRIOPort,
-  AVRTimer,
-  timer0Config,
-  timer1Config,
-  timer2Config,
-  AVRADC,
-  adcConfig,
-  usart0Config,
-  AVRTWI,
-  twiConfig,
-  PinState,
-} from "avr8js";
+import {CPU,avrInstruction,portBConfig,portDConfig,AVRUSART,AVRIOPort,AVRTimer,timer0Config,timer1Config,timer2Config,AVRADC,adcConfig,usart0Config,AVRTWI,twiConfig,PinState,} from "avr8js";
 import type { PartInstance, PinRef, Wire } from "../types/types";
 import { createPartInstance } from "../config/partDefinitions";
 import { buildNetlist } from "../engine/netlist";
@@ -25,10 +8,16 @@ import type { Netlist } from "../engine/netlist";
 import { DEFAULT_SKETCH } from "../constants/constant";
 import { createI2CBus, createHd44780Device } from "../engine/i2cLcdDevice";
 import type { I2CDevice } from "../engine/i2cLcdDevice";
+import { setBuzzerTone, stopBuzzerTone, stopAllBuzzers, removeBuzzerVoice } from "../engine/buzzerVoice.ts";
 
 interface LcdScreenState {
   lines: [string, string];
   backlightOn: boolean;
+}
+
+interface BuzzerState {
+  active: boolean;
+  frequency: number; // Hz -- 0 means silent
 }
 
 interface CircuitState {
@@ -45,6 +34,7 @@ interface CircuitState {
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>;
   consoleLog: string[];
   lcdScreens: Record<string, LcdScreenState>;
+  buzzerStates: Record<string, BuzzerState>;
 
   addPart: (type: string, x: number, y: number) => void;
   movePart: (id: string, x: number, y: number) => void;
@@ -177,6 +167,70 @@ function createUltrasonicDevice(
   };
 }
 
+/**
+ * Passive buzzer -- no internal oscillator, so it only makes sound if the
+ * connected pin is actively toggling (e.g. via tone()). Measures the
+ * cycle count between consecutive edges (any direction) on the port's
+ * own change listener -- the same cycle-accurate technique already used
+ * for the ultrasonic sensor's trigger detection -- and derives frequency
+ * from that, since sampling digitalPins once per ~16ms animation frame
+ * is far too coarse to see an audio-rate square wave at all.
+ */
+function createPassiveBuzzerDevice(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  partId: string,
+  signalPin: number,
+  onFrequencyChange: (partId: string, frequencyHz: number) => void
+): ExternalDevice {
+  const { port, bit } = getPortAndBit(signalPin, portB, portD);
+
+  let lastLevel = port.pinState(bit) === PinState.High;
+  let edgePending = false;
+  let lastEdgeCycle: number | null = null;
+  let currentFrequency = 0;
+  let lastActivityCycle = 0;
+
+  // If nothing toggles for this long, treat the buzzer as silent -- covers
+  // noTone() and the end of a timed tone(pin, freq, duration) call.
+  const SILENCE_TIMEOUT_CYCLES = Math.round(16_000_000 * 0.05); // 50ms
+
+  port.addListener(() => {
+    const level = port.pinState(bit) === PinState.High;
+    if (level !== lastLevel) edgePending = true;
+    lastLevel = level;
+  });
+
+  return {
+    claimedPins: [signalPin],
+    update: (cpu: CPU) => {
+      if (edgePending) {
+        edgePending = false;
+        if (lastEdgeCycle !== null) {
+          const halfPeriodCycles = cpu.cycles - lastEdgeCycle;
+          if (halfPeriodCycles > 0) {
+            const freq = 16_000_000 / (2 * halfPeriodCycles);
+            // Ignore absurd values (startup glitches, one-off DDR flips)
+            // and skip redundant updates to avoid spamming the store.
+            if (freq >= 20 && freq <= 20000) {
+              const rounded = Math.round(freq);
+              if (rounded !== currentFrequency) {
+                currentFrequency = rounded;
+                onFrequencyChange(partId, currentFrequency);
+              }
+            }
+          }
+        }
+        lastEdgeCycle = cpu.cycles;
+        lastActivityCycle = cpu.cycles;
+      } else if (currentFrequency > 0 && cpu.cycles - lastActivityCycle > SILENCE_TIMEOUT_CYCLES) {
+        currentFrequency = 0;
+        onFrequencyChange(partId, 0);
+      }
+    },
+  };
+}
+
 function setupExternalDevices(
   portB: AVRIOPort,
   portD: AVRIOPort,
@@ -205,6 +259,39 @@ function setupExternalDevices(
 }
 
 /**
+ * Discovers every passive buzzer wired to the Arduino and builds its
+ * frequency-detection device. Tries both legs since either could be the
+ * signal pin depending on how it was wired (the other leg goes to GND).
+ * Kept as its own setup function (like the LCD's) rather than folded into
+ * setupExternalDevices, since it needs its own onFrequencyChange callback
+ * shape.
+ */
+function setupPassiveBuzzerDevices(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  parts: PartInstance[],
+  wires: Wire[],
+  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
+  onFrequencyChange: (partId: string, frequencyHz: number) => void
+): ExternalDevice[] {
+  const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
+  const devices: ExternalDevice[] = [];
+
+  for (const part of parts) {
+    if (part.type !== "passive-buzzer") continue;
+
+    const posPin = wiringNetlist.getConnectedArduinoPin(part.id, "positive");
+    const negPin = wiringNetlist.getConnectedArduinoPin(part.id, "negative");
+    const signalPin = posPin ?? negPin;
+    if (signalPin === null) continue;
+
+    devices.push(createPassiveBuzzerDevice(portB, portD, part.id, signalPin, onFrequencyChange));
+  }
+
+  return devices;
+}
+
+/**
  * Builds the I2C bus's device list -- currently just LCD screens, one per
  * "lcd-16x2-i2c" part in the circuit that's actually powered (VCC + GND
  * reach real power/ground). Unlike the ultrasonic sensor, I2C's SDA/SCL
@@ -213,13 +300,6 @@ function setupExternalDevices(
  * digitalWrite()-driven pins do. So we don't need to resolve which
  * Arduino pin SDA/SCL land on the way we did for trig/echo; we only need
  * to know the device is powered.
- *
- * Known simplification: this doesn't verify your drawn wires actually go
- * to A4/A5 specifically -- on real hardware wiring SDA/SCL to the wrong
- * pins would simply not work, but our AVRTWI here isn't routed through
- * our own netlist at all, so any powered LCD will respond on the bus
- * regardless of which pins you visually wired SDA/SCL to. Good enough
- * for now; flag if this ever needs stricter validation.
  */
 function setupLcdI2CDevices(
   parts: PartInstance[],
@@ -290,6 +370,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   digitalPins: {},
   consoleLog: [],
   lcdScreens: {},
+  buzzerStates: {},
 
   addPart: (type, x, y) => {
     const id = nanoid(6);
@@ -306,6 +387,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   selectPart: (id) => set({ selectedPartId: id }),
 
   deletePart: (id) => {
+    removeBuzzerVoice(id); // no-op if id isn't a buzzer / nothing playing
     set((state) => ({
       parts: state.parts.filter((p) => p.id !== id),
       wires: state.wires.filter((w) => w.from.partId !== id && w.to.partId !== id),
@@ -380,9 +462,10 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
   runSimulation: async () => {
     get().stopSimulation();
+    stopAllBuzzers();
 
     const token = get().runToken + 1;
-    set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"], lcdScreens: {} });
+    set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"], lcdScreens: {}, buzzerStates: {} });
 
     const pushLog = (line: string) => set((s) => ({ consoleLog: [...s.consoleLog.slice(-99), line] }));
 
@@ -407,13 +490,33 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const adc = new AVRADC(cpu, adcConfig);
 
       const initialState = get();
-      const externalDevices = setupExternalDevices(
+      const ultrasonicDevices = setupExternalDevices(
         portB,
         portD,
         initialState.parts,
         initialState.wires,
         initialState.digitalPins
       );
+
+      // --- Passive buzzer setup -----------------------------------------
+      const passiveBuzzerDevices = setupPassiveBuzzerDevices(
+        portB,
+        portD,
+        initialState.parts,
+        initialState.wires,
+        initialState.digitalPins,
+        (partId, frequencyHz) => {
+          set((s) => ({
+            buzzerStates: {
+              ...s.buzzerStates,
+              [partId]: { active: frequencyHz > 0, frequency: frequencyHz },
+            },
+          }));
+          setBuzzerTone(partId, frequencyHz);
+        }
+      );
+
+      const externalDevices = [...ultrasonicDevices, ...passiveBuzzerDevices];
       const claimedPins = new Set(externalDevices.flatMap((d) => d.claimedPins));
 
       // --- I2C / LCD setup ---------------------------------------------
@@ -430,82 +533,51 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
       if (lcdI2CDevices.length > 0) {
         const twi = new AVRTWI(cpu, twiConfig, 16000000);
-        
-        console.log(
-          "[I2C] TWI prototype:",
-          Object.getOwnPropertyNames(Object.getPrototypeOf(twi))
-        );
 
-        console.log(
-          "[I2C] TWI own keys:",
-          Object.keys(twi)
-        );
+        console.log("[I2C] TWI prototype:", Object.getOwnPropertyNames(Object.getPrototypeOf(twi)));
+        console.log("[I2C] TWI own keys:", Object.keys(twi));
+        console.log("[I2C] TWI eventHandler:", (twi as any).eventHandler);
 
-        console.log(
-          "[I2C] TWI eventHandler:",
-          (twi as any).eventHandler
-        );
         const bus = createI2CBus(lcdI2CDevices);
 
-
-
-        // TEMP diagnostics -- remove once confirmed working. These wrap
-        // the bus so we can see exactly what's happening on the very
-        // first test run: does connectToSlave ever fire, does the
-        // address match, do writeByte calls arrive at all.
+        // These wrap the bus so we can see exactly what's happening on
+        // the wire, and (critically, confirmed working) call the
+        // matching `complete*` method on `twi` after each bus response --
+        // AVRTWI's real API expects the event handler to report back
+        // asynchronously via these rather than just returning a value.
         const wrappedBus = {
           start: (repeated: boolean) => {
             console.log("[I2C] start", { repeated });
-
             bus.start();
-
-            // VERY IMPORTANT:
             twi.completeStart();
           },
 
           stop: () => {
             console.log("[I2C] stop");
-
             bus.stop();
-
             twi.completeStop();
           },
 
           connectToSlave: (addr: number, write: boolean) => {
-            console.log("[I2C] connectToSlave", {
-              addr: addr.toString(16),
-              write,
-            });
-
+            console.log("[I2C] connectToSlave", { addr: addr.toString(16), write });
             const ack = bus.connectToSlave(addr, write);
-
             console.log("[I2C] ACK:", ack);
-
-            // VERY IMPORTANT:
             twi.completeConnect(ack);
           },
 
           writeByte: (value: number) => {
             console.log("[I2C] writeByte", value.toString(16));
-
             const ack = bus.writeByte(value);
-
             twi.completeWrite(ack);
           },
 
           readByte: (ack: boolean) => {
             console.log("[I2C] readByte", { ack });
-
             const value = bus.readByte(ack);
-
             twi.completeRead(value);
           },
         };
 
-        // TEMP: if TypeScript errors here, `eventHandler` isn't the real
-        // property name on AVRTWI in your installed version -- check
-        // `node -e "console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(require('avr8js').AVRTWI.prototype)))"`
-        // or your editor's autocomplete on `twi.` to find the real one.
         (twi as unknown as { eventHandler: typeof wrappedBus }).eventHandler = wrappedBus;
       }
       // -------------------------------------------------------------------
@@ -568,6 +640,30 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
             }
 
             syncSimpleDigitalInputs(frameNetlist, activeArduino.id, cpu, portB, portD, claimedPins);
+
+            // --- Active buzzer: simple DC forward-bias check, no CPU-cycle
+            // precision needed (fixed internal tone, just on/off). ---
+            for (const part of currentState.parts) {
+              if (part.type !== "active-buzzer") continue;
+              const isSounding = frameNetlist.isActiveBuzzerSounding(part.id);
+              const toneHz = Number(part.properties?.toneHz ?? 2500);
+              const nextActive = isSounding;
+              const nextFrequency = isSounding ? toneHz : 0;
+              const prev = currentState.buzzerStates[part.id];
+              if (!prev || prev.active !== nextActive || prev.frequency !== nextFrequency) {
+                set((s) => ({
+                  buzzerStates: {
+                    ...s.buzzerStates,
+                    [part.id]: { active: nextActive, frequency: nextFrequency },
+                  },
+                }));
+                if (nextActive) {
+                  setBuzzerTone(part.id, nextFrequency);
+                } else {
+                  stopBuzzerTone(part.id);
+                }
+              }
+            }
           }
 
           let remaining = instructionsPerFrame;
@@ -602,6 +698,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       cancelAnimationFrame(activeAnimationId);
       activeAnimationId = null;
     }
+    stopAllBuzzers();
     set({ running: false });
   },
 }));

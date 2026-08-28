@@ -8,7 +8,6 @@ export function ActiveBuzzerPart({
   part,
   selected,
   pinStates,
-  netlist,
   onPinClick,
 }: {
   part: PartInstance;
@@ -18,12 +17,6 @@ export function ActiveBuzzerPart({
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }) {
   const def = partDefinitions["active-buzzer"];
-
-  const isPowered =
-    netlist?.isPowered(part.id) ??
-    (pinStates?.vcc === "high" && pinStates?.gnd === "low");
-
-  const beeping = Boolean(part.properties?.beeping) || isPowered;
 
   const bodyRadius = 4 * GRID;
   const pinY = 5 * GRID;
@@ -142,46 +135,6 @@ export function ActiveBuzzerPart({
       >
         −
       </text>
-
-      {/* Active sound indication */}
-      {beeping && (
-        <>
-          <circle
-            cx={0}
-            cy={0}
-            r={4.35 * GRID}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth={1.2}
-            opacity={0.8}
-          />
-
-          <path
-            d={`
-              M ${4.7 * GRID} ${-1.5 * GRID}
-              Q ${5.8 * GRID} 0
-              ${4.7 * GRID} ${1.5 * GRID}
-            `}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth={1.1}
-            strokeLinecap="round"
-          />
-
-          <path
-            d={`
-              M ${5.4 * GRID} ${-2.4 * GRID}
-              Q ${7 * GRID} 0
-              ${5.4 * GRID} ${2.4 * GRID}
-            `}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth={0.9}
-            strokeLinecap="round"
-            opacity={0.75}
-          />
-        </>
-      )}
 
       {/* Pin dots - IMPORTANT: onClick is passed through */}
       {def.pins.map((pin) => (
