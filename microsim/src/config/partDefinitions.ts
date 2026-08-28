@@ -341,6 +341,24 @@ export const partDefinitions: Record<string, PartDefinition> = {
     defaultProperties: { x: 0.5, y: 0.5, pressed: false },
   },
 
+  "keypad-4x4": {
+    type: "keypad-4x4",
+    displayName: "4x4 Keypad",
+    widthUnits: 12,
+    heightUnits: 18,
+    pins: [
+      { id: "row1", label: "R1", x: -3.5, y: 9, type: "digital" },
+      { id: "row2", label: "R2", x: -2.5, y: 9, type: "digital" },
+      { id: "row3", label: "R3", x: -1.5, y: 9, type: "digital" },
+      { id: "row4", label: "R4", x: -0.5, y: 9, type: "digital" },
+      { id: "col1", label: "C1", x: 0.5, y: 9, type: "digital" },
+      { id: "col2", label: "C2", x: 1.5, y: 9, type: "digital" },
+      { id: "col3", label: "C3", x: 2.5, y: 9, type: "digital" },
+      { id: "col4", label: "C4", x: 3.5, y: 9, type: "digital" },
+    ],
+    defaultProperties: { pressedRow: null, pressedCol: null },
+  },
+
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

@@ -306,6 +306,15 @@
       netVoltageOverride.set(vryRoot, powered ? vccVoltage * yPos : 0);
     }
 
+    for (const part of parts) {
+      if (part.type !== "keypad-4x4") continue;
+      const pressedRow = part.properties?.pressedRow;
+      const pressedCol = part.properties?.pressedCol;
+      if (typeof pressedRow === "number" && typeof pressedCol === "number") {
+        uf.union(pinKey(part.id, `row${pressedRow + 1}`), pinKey(part.id, `col${pressedCol + 1}`));
+      }
+    }
+
     function getConnectedArduinoPinImpl(partId: string, pinId: string): number | null {
       const targetRoot = uf.find(pinKey(partId, pinId));
       for (const part of parts) {

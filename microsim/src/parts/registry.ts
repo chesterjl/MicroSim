@@ -18,6 +18,7 @@ import { ServoMG90Part } from "./ServoMG90";
 import { RgbLedPart } from "./RgbLed";
 import { ToggleSwitchPart } from "./ToggleSwitch";
 import { JoystickPart } from "./Joystick";
+import { KeypadPart } from "./Keypad";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -48,5 +49,6 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "rgb-led": RgbLedPart,
   "toggle-switch": ToggleSwitchPart,
   joystick: JoystickPart,
+  "keypad-4x4": KeypadPart,
 
 };
