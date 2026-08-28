@@ -1,14 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  EllipsisVertical,
-  RotateCcw,
-  ZoomIn,
-  ZoomOut,
-  Code2,
-  CircuitBoard,
-  Columns,
-  Check,
-} from "lucide-react";
+import { EllipsisVertical, RotateCcw, ZoomIn, ZoomOut, Code2, CircuitBoard, Columns, Check } from "lucide-react";
 
 export type ViewMode = "split" | "code" | "canvas";
 
@@ -21,14 +12,7 @@ interface SimulationNavbarProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-export function SimulationNavbar({
-  onBackToHome,
-  zoomLevel,
-  onZoom,
-  onResetView,
-  viewMode,
-  onViewModeChange,
-}: SimulationNavbarProps) {
+export function SimulationNavbar({ onBackToHome, zoomLevel, onZoom, onResetView, viewMode, onViewModeChange}: SimulationNavbarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -56,10 +40,7 @@ export function SimulationNavbar({
     <div className="flex items-center justify-between px-4 py-2 bg-[#18181b] border-b border-[#27272a] z-30 select-none">
       {/* Left Branding */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={onBackToHome}
-          className="text-sky-400 font-bold text-sm hover:text-sky-300 transition-colors"
-        >
+        <button onClick={onBackToHome} className="text-sky-400 font-bold text-sm hover:text-sky-300 transition-colors">
           ← MicroSim
         </button>
         <span className="text-zinc-600 text-xs">|</span>

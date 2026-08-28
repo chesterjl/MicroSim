@@ -313,6 +313,19 @@ export const partDefinitions: Record<string, PartDefinition> = {
     ],
     defaultProperties: {},
   },
+
+  "toggle-switch": {
+    type: "toggle-switch",
+    displayName: "Toggle Switch",
+    widthUnits: 4,
+    heightUnits: 4,
+    pins: [
+      { id: "pin1", label: "1", x: -1.5, y: 2, type: "digital" },
+      { id: "pin2", label: "2", x: 1.5, y: 2, type: "digital" },
+    ],
+    defaultProperties: { on: false },
+  },
+  
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

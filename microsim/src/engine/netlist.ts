@@ -113,6 +113,13 @@
       }
     }
 
+    for (const part of parts) {
+      if (part.type !== "toggle-switch") continue;
+      if (part.properties?.on) {
+        uf.union(pinKey(part.id, "pin1"), pinKey(part.id, "pin2"));
+      }
+    }
+
     const breadboards = parts.filter((p) => p.type.startsWith("breadboard"));
     for (const part of breadboards) {
       const def = partDefinitions[part.type];

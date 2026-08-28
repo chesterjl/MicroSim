@@ -45,6 +45,7 @@ interface CircuitState {
   deletePart: (id: string) => void;
   deleteSelected: () => void;
   togglePushbutton: (id: string) => void;
+  toggleSwitch: (id: string) => void;
   updatePartProperties: (id: string, patch: Record<string, unknown>) => void;
 
   startWire: (pin: PinRef) => void;
@@ -434,6 +435,14 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     set((state) => ({
       parts: state.parts.map((p) =>
         p.id === id ? { ...p, properties: { ...p.properties, pressed: !p.properties.pressed } } : p
+      ),
+    }));
+  },
+
+  toggleSwitch: (id) => {
+    set((state) => ({
+      parts: state.parts.map((p) =>
+        p.id === id ? { ...p, properties: { ...p.properties, on: !p.properties.on } } : p
       ),
     }));
   },

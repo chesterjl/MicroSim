@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  ChevronDown,
-  CircuitBoard,
-  Cpu,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import {ChevronDown, CircuitBoard, Cpu, Search, SlidersHorizontal} from "lucide-react";
 import type { BoardType, FilterOption } from "../../types/types";
 
 interface FilterTabProps {
@@ -39,19 +33,10 @@ const FILTER_OPTIONS: FilterOption<BoardType>[] = [
   },
 ];
 
-export default function FilterTab({
-  value,
-  onChange,
-  searchQuery,
-  onSearchChange,
-  className = "",
-}: FilterTabProps) {
+export default function FilterTab({value, onChange, searchQuery, onSearchChange, className = ""}: FilterTabProps) {
   const [isOpen, setIsOpen] = useState(false);
-
-  const selectedOption =
-    FILTER_OPTIONS.find((option) => option.value === value) ??
-    FILTER_OPTIONS[0];
-
+  const selectedOption = FILTER_OPTIONS.find((option) => option.value === value) ?? FILTER_OPTIONS[0];
+  
   return (
     <div className={`flex flex-col gap-3 mb-8 pb-4 border-b border-zinc-800/80 ${className}`}>
       <div className="relative w-full md:max-w-sm md:self-end">

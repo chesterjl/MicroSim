@@ -16,6 +16,7 @@ import { ActiveBuzzerPart } from "./ActiveBuzzer";
 import { PassiveBuzzerPart } from "./PassiveBuzzer";
 import { ServoMG90Part } from "./ServoMG90";
 import { RgbLedPart } from "./RgbLed";
+import { ToggleSwitchPart } from "./ToggleSwitch";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -43,5 +44,7 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "active-buzzer": ActiveBuzzerPart,
   "passive-buzzer": PassiveBuzzerPart,
   "servo-mg90": ServoMG90Part,
-  "rgb-led": RgbLedPart
+  "rgb-led": RgbLedPart,
+  "toggle-switch": ToggleSwitchPart,
+
 };

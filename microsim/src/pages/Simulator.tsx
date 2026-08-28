@@ -23,7 +23,7 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
     if (!hasInitializedArduino.current) {
       hasInitializedArduino.current = true;
       if (!parts.some((p) => p.type === "arduino-uno")) {
-        addPart("arduino-uno", 4200, 4000);
+        addPart("arduino-uno", 4050, 3850);
       }
     }
   }, [parts, addPart]);

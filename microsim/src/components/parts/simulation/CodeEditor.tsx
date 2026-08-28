@@ -18,14 +18,10 @@ export function CodeEditor() {
 
   return (
     <div className="flex flex-col h-full bg-[#1e1e1e] border-r border-[#333]">
-      {/* Top Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 bg-[#252526] border-b border-[#333]">
         <span className="text-xs font-mono text-zinc-400">sketch.ino</span>
         {running ? (
-          <button
-            onClick={stopSimulation}
-            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded transition-colors"
-          >
+          <button onClick={stopSimulation} className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded transition-colors">
             ■ Stop
           </button>
         ) : (
@@ -59,7 +55,6 @@ export function CodeEditor() {
         />
       </div>
 
-      {/* Bottom Console Panel */}
       <div className="h-40 border-t border-[#333] flex flex-col">
         <div className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-zinc-400 bg-[#252526]">
           Console

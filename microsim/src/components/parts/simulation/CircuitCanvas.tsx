@@ -59,6 +59,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   const cancelWire = useCircuitStore((s) => s.cancelWire);
   const deleteWire = useCircuitStore((s) => s.deleteWire);
   const togglePushbutton = useCircuitStore((s) => s.togglePushbutton);
+  const toggleSwitch = useCircuitStore((s) => s.toggleSwitch);
   const connectPins = useCircuitStore((s) => s.connectPins);
   const removeWiresForPart = useCircuitStore((s) => s.removeWiresForPart);
 
@@ -67,7 +68,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const effectiveZoom = zoomLevel * 0.55;
+  const effectiveZoom = zoomLevel * 0.9625;
 
   const netlist = useMemo(
     () => buildNetlist(parts, wires, digitalPins, isSimulating),
@@ -324,7 +325,13 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
         <Component
           part={part}
           selected={part.id === selectedPartId}
-          onToggle={part.type === "pushbutton" ? togglePushbutton : undefined}
+          onToggle={
+            part.type === "pushbutton"
+              ? togglePushbutton
+              : part.type === "toggle-switch"
+              ? toggleSwitch
+              : undefined
+          }
           pinStates={pinStates}
           netlist={netlist}
           isSimulating={isSimulating}
