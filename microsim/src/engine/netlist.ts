@@ -95,6 +95,12 @@
     }
 
     for (const part of parts) {
+      if (part.type === "photoresistor") {
+        uf.union(pinKey(part.id, "pin1"), pinKey(part.id, "pin2"));
+      }
+    }
+
+    for (const part of parts) {
       if (part.type !== "potentiometer") continue;
       const wiperPosition = (part.properties?.wiperPosition as number) ?? 0.5;
       if (wiperPosition >= 0.5) {
@@ -382,16 +388,30 @@
             if (ohms === undefined) ohms = 5000;
             totalOhms += ohms;
           }
+        } else if (p.type === "photoresistor") {
+          const r1Root = uf.find(pinKey(p.id, "pin1"));
+          if (componentRoots.has(r1Root)) {
+            const lightLevel = (p.properties?.lightLevel as number) ?? 0.5;
+            totalOhms += photoresistorOhms(lightLevel);
+          }
         }
       }
 
       return calculateBrightness(totalOhms > 0 ? totalOhms : 220);
     }
 
-    function calculateRgbChannelBrightness(
-      partId: string,
-      channel: "red" | "green" | "blue"
-    ): number {
+    function photoresistorOhms(lightLevel: number): number {
+      const darkOhms = 1_000_000; // pitch black — effectively open circuit
+      const brightOhms = 100; // full light — near a dead short
+      const clamped = Math.max(0, Math.min(1, lightLevel));
+      // LDRs respond roughly logarithmically to light, not linearly
+      const logDark = Math.log10(darkOhms);
+      const logBright = Math.log10(brightOhms);
+      const logOhms = logDark + (logBright - logDark) * clamped;
+      return Math.round(Math.pow(10, logOhms));
+    }
+
+    function calculateRgbChannelBrightness(partId: string, channel: "red" | "green" | "blue"): number {
       const part = parts.find((p) => p.id === partId);
       if (!part || part.type !== "rgb-led") return 0;
 
@@ -433,26 +453,24 @@
 
       for (const p of parts) {
         if (p.type === "resistor") {
-          const r1Root = uf.find(
-            pinKey(p.id, "pin1")
-          );
+          const r1Root = uf.find(pinKey(p.id, "pin1"));
+          const r2Root = uf.find(pinKey(p.id, "pin2"));
 
-          const r2Root = uf.find(
-            pinKey(p.id, "pin2")
-          );
-
-          if (
-            r1Root === channelRoot ||
-            r2Root === channelRoot
-          ) {
+          if (r1Root === channelRoot || r2Root === channelRoot) {
             const rawRes = p.properties?.resistance;
 
-            const ohms =
-              typeof rawRes === "number"
+            const ohms = typeof rawRes === "number"
                 ? rawRes
                 : parseFloat(String(rawRes)) || 220;
 
             totalOhms += ohms;
+          }
+        } else if (p.type === "photoresistor") {
+          const r1Root = uf.find(pinKey(p.id, "pin1"));
+          const r2Root = uf.find(pinKey(p.id, "pin2"));
+          if (r1Root === channelRoot || r2Root === channelRoot) {
+            const lightLevel = (p.properties?.lightLevel as number) ?? 0.5;
+            totalOhms += photoresistorOhms(lightLevel);
           }
         }
       }

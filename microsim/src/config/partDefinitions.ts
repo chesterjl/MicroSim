@@ -359,6 +359,39 @@ export const partDefinitions: Record<string, PartDefinition> = {
     defaultProperties: { pressedRow: null, pressedCol: null },
   },
 
+  photoresistor: {
+    type: "photoresistor",
+    displayName: "Photoresistor",
+    widthUnits: 3,
+    heightUnits: 4,
+    pins: [
+      { id: "pin1", label: "1", x: -1, y: 3.6, type: "passive" },
+      { id: "pin2", label: "2", x: 1, y: 3.6, type: "passive" },
+    ],
+    defaultProperties: { lightLevel: 0.5 },
+  },
+
+  "ir-receiver": {
+    type: "ir-receiver",
+    displayName: "IR Receiver",
+    widthUnits: 5,
+    heightUnits: 6,
+    pins: [
+      { id: "gnd", label: "GND", x: -1, y: 3, type: "ground" },
+      { id: "vcc", label: "VCC", x: 0, y: 3, type: "power" },
+      { id: "out", label: "OUT", x: 1, y: 3, type: "digital" },
+    ],
+    defaultProperties: {},
+  },
+
+  "ir-remote": {
+    type: "ir-remote",
+    displayName: "IR Remote Control",
+    widthUnits: 14,
+    heightUnits: 30,
+    pins: [], // wireless -- broadcasts to any powered ir-receiver on canvas, no wiring
+    defaultProperties: { lastButton: null, lastCode: null, sentToken: 0 },
+  },
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

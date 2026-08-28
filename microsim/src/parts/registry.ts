@@ -19,6 +19,9 @@ import { RgbLedPart } from "./RgbLed";
 import { ToggleSwitchPart } from "./ToggleSwitch";
 import { JoystickPart } from "./Joystick";
 import { KeypadPart } from "./Keypad";
+import { PhotoresistorPart } from "./Photoresistor";
+import { IrReceiverPart } from "./IrReceiver";
+import { IrRemotePart } from "./IrRemote";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -50,5 +53,8 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "toggle-switch": ToggleSwitchPart,
   joystick: JoystickPart,
   "keypad-4x4": KeypadPart,
+  photoresistor: PhotoresistorPart,
+  "ir-receiver": IrReceiverPart,
+  "ir-remote": IrRemotePart,
 
 };

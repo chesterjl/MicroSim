@@ -56,6 +56,8 @@ RUN arduino-cli lib install "DHT sensor library"
 # TRIG/ECHO pins either way.
 RUN arduino-cli lib install "NewPing"
 
+RUN arduino-cli lib install "IRremote"
+
 # PhotoResistor / analog light sensor sketches occasionally reach for
 # this rather than a raw analogRead() -- cheap to have available.
 # RUN arduino-cli lib install "Adafruit ADS1X15"

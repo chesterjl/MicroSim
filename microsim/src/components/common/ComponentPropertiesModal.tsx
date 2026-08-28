@@ -3,6 +3,7 @@ import type { PartInstance } from "../../types/types";
 import { BatteryModal } from "../parts/battery/BatteryModal";
 import { LedModal } from "../parts/led/LedModal";
 import { PotentiometerModal } from "../parts/potentiometer/PotentiometerModal";
+import { PhotoresistorModal } from "../parts/resistor/PhotoresistorModal";
 import { ResistorModal } from "../parts/resistor/ResistorModal";
 import { UltrasonicHcsr04Modal } from "../parts/sensor/UltrasonicHcsr04Modal";
 
@@ -27,6 +28,8 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
       return <PotentiometerModal part={part} onClose={onClose} />;
     case "ultrasonic-hcsr04":
       return <UltrasonicHcsr04Modal part={part} onClose={onClose} />;
+    case "photoresistor":
+      return <PhotoresistorModal part={part} onClose={onClose} />;
     default:
       return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">

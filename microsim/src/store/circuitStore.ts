@@ -11,6 +11,7 @@ import type { I2CDevice } from "../engine/i2cLcdDevice";
 import { setBuzzerTone, stopBuzzerTone, stopAllBuzzers, removeBuzzerVoice } from "../engine/buzzerVoice.ts";
 import { createServoDevice } from "../engine/servoDevice";
 import type { ServoExternalDevice } from "../engine/servoDevice";
+import { createIrReceiverDevice, IR_BUTTON_CODES } from "../engine/irRemote";
 
 interface LcdScreenState {
   lines: [string, string];
@@ -38,7 +39,7 @@ interface CircuitState {
   lcdScreens: Record<string, LcdScreenState>;
   buzzerStates: Record<string, BuzzerState>;
   servoAngles: Record<string, number>;
-
+  
   addPart: (type: string, x: number, y: number) => void;
   movePart: (id: string, x: number, y: number) => void;
   selectPart: (id: string | null) => void;
@@ -46,6 +47,7 @@ interface CircuitState {
   deleteSelected: () => void;
   togglePushbutton: (id: string) => void;
   toggleSwitch: (id: string) => void;
+  pressIrButton: (id: string, buttonKey: string) => void;
   updatePartProperties: (id: string, patch: Record<string, unknown>) => void;
 
   startWire: (pin: PinRef) => void;
@@ -259,6 +261,17 @@ function setupExternalDevices(
     }
   }
 
+  for (const part of parts) {
+    if (part.type === "ir-receiver") {
+      const outPinNum = wiringNetlist.getConnectedArduinoPin(part.id, "out");
+      if (outPinNum === null) continue;
+
+      const { port, bit } = getPortAndBit(outPinNum, portB, portD);
+      const powered = wiringNetlist.isPowered(part.id);
+      devices.push(createIrReceiverDevice(port, bit, outPinNum, powered));
+    }
+  }
+
   return devices;
 }
 
@@ -443,6 +456,26 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     set((state) => ({
       parts: state.parts.map((p) =>
         p.id === id ? { ...p, properties: { ...p.properties, on: !p.properties.on } } : p
+      ),
+    }));
+  },
+
+  pressIrButton: (id, buttonKey) => {
+    const code = IR_BUTTON_CODES[buttonKey];
+    if (code === undefined) return;
+    set((state) => ({
+      parts: state.parts.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              properties: {
+                ...p.properties,
+                lastButton: buttonKey,
+                lastCode: code,
+                sentToken: Number(p.properties?.sentToken ?? 0) + 1,
+              },
+            }
+          : p
       ),
     }));
   },
