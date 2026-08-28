@@ -2,12 +2,7 @@ import type { BreadboardProps } from "../types/breadboard";
 import { GRID } from "../types/types";
 import { PinDot } from "./PinDot";
 
-export function SmallBreadboardPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: BreadboardProps) {
+export function SmallBreadboardPart({part, selected, pinStates, onPinClick}: BreadboardProps) {
   const cols = 17;
   const colOffset = -Math.floor(cols / 2);
   const width = (cols + 3) * GRID;

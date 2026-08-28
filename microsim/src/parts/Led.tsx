@@ -12,23 +12,18 @@ const COLOR_PALETTE: Record<string, { off: string; on: string; glow: string }> =
   white: { off: "#555555", on: "#ffffff", glow: "#ffffff" },
 };
 
-export function LedPart({
-  part,
-  selected,
-  pinStates,
-  netlist,
-  onPinClick,
-}: {
+interface LedPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function LedPart({part, selected, pinStates, netlist, onPinClick}: LedPartProps) {
   const rawColor = (part.properties?.color as string) ?? "red";
   const colorTheme = COLOR_PALETTE[rawColor.toLowerCase()] ?? COLOR_PALETTE.red;
 
-  // 1. Check if forward-biased (Anode = High, Cathode = Low)
   const isForwardBiased = pinStates?.anode === "high" && pinStates?.cathode === "low";
 
   // 2. Calculate dynamic brightness (0.0 to 1.0) based on circuit resistance

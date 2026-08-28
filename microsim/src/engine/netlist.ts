@@ -39,6 +39,11 @@
   export interface Netlist {
     getPinState: (partId: string, pinId: string) => NetState;
     getPartBrightness: (partId: string) => number;
+    getRgbChannelBrightness: (
+      partId: string,
+      channel: "red" | "green" | "blue"
+    ) => number;
+
     isPowered: (partId: string) => boolean;
     isActiveBuzzerSounding: (partId: string) => boolean;
     getAnalogVoltage: (partId: string, pinId: string) => number;
@@ -63,6 +68,7 @@
       return {
         getPinState: () => "floating",
         getPartBrightness: () => 0,
+        getRgbChannelBrightness: () => 0,
         isPowered: () => false,
         isActiveBuzzerSounding: () => false,
         getAnalogVoltage: () => 0,
@@ -284,7 +290,7 @@
 
       const def = partDefinitions[part.type];
       if (!def) return 0;
-
+      
       if (part.type === "led") {
         const anodeRoot = uf.find(pinKey(part.id, "anode"));
         const cathodeRoot = uf.find(pinKey(part.id, "cathode"));
@@ -340,9 +346,88 @@
       return calculateBrightness(totalOhms > 0 ? totalOhms : 220);
     }
 
+    function calculateRgbChannelBrightness(
+      partId: string,
+      channel: "red" | "green" | "blue"
+    ): number {
+      const part = parts.find((p) => p.id === partId);
+      if (!part || part.type !== "rgb-led") return 0;
+
+      /*
+      * RGB LED is common-cathode:
+      *
+      * red   -> individual anode
+      * green -> individual anode
+      * blue  -> individual anode
+      * gnd   -> shared cathode
+      */
+      const channelRoot = uf.find(
+        pinKey(part.id, channel)
+      );
+
+      const gndRoot = uf.find(
+        pinKey(part.id, "gnd")
+      );
+
+      const channelState = resolveNetState(channelRoot);
+      const gndState = resolveNetState(gndRoot);
+
+      if (channelState !== "high" || gndState !== "low") {
+        return 0;
+      }
+
+      /*
+      * Only count resistors that are actually in the
+      * channel's electrical network.
+      *
+      * This allows:
+      *
+      * Arduino D9 -> resistor -> RED -> GND
+      *
+      * to have its own brightness without affecting
+      * GREEN or BLUE.
+      */
+      let totalOhms = 0;
+
+      for (const p of parts) {
+        if (p.type === "resistor") {
+          const r1Root = uf.find(
+            pinKey(p.id, "pin1")
+          );
+
+          const r2Root = uf.find(
+            pinKey(p.id, "pin2")
+          );
+
+          if (
+            r1Root === channelRoot ||
+            r2Root === channelRoot
+          ) {
+            const rawRes = p.properties?.resistance;
+
+            const ohms =
+              typeof rawRes === "number"
+                ? rawRes
+                : parseFloat(String(rawRes)) || 220;
+
+            totalOhms += ohms;
+          }
+        }
+      }
+
+      /*
+      * Default to a 220Ω-equivalent brightness when
+      * no resistor is detected.
+      */
+      return calculateBrightness(
+        totalOhms > 0 ? totalOhms : 220
+      );
+    }
+
     return {
       getPinState: (partId, pinId) => resolveNetState(uf.find(pinKey(partId, pinId))),
       getPartBrightness: (partId) => calculatePartBrightness(partId),
+      getRgbChannelBrightness: (partId, channel) => calculateRgbChannelBrightness(partId, channel),
       isPowered: (partId) => isPartPowered(partId),
       isActiveBuzzerSounding: (partId) => isActiveBuzzerSoundingImpl(partId),
       getAnalogVoltage: (partId, pinId) => resolveNetVoltage(uf.find(pinKey(partId, pinId))),

@@ -4,20 +4,17 @@ import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function BatteryPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface BatteryPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function BatteryPart({part,selected, pinStates, onPinClick}: BatteryPartProps) {
   const voltage = (part.properties?.voltage as number) ?? 9;
   const def = partDefinitions.battery;
-
+  
   // Layout, all in px (grid units * GRID), matching def.pins below.
   const bodyLeft = -4.5 * GRID; // orange contact cap starts here
   const capRight = 1 * GRID; // boundary between orange cap and dark body

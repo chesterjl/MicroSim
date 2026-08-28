@@ -13,14 +13,7 @@ import type { NetState } from "../engine/netlist";
  * top-level layer -- fine for now, this covers the common case.
  */
 
-export function PinDot({
-  x,
-  y,
-  pinId,
-  label,
-  highlighted = false,
-  onClick,
-}: {
+interface PinDotProps {
   x: number;
   y: number;
   pinId: string;
@@ -28,12 +21,10 @@ export function PinDot({
   highlighted?: boolean;
   state?: NetState;
   onClick?: (e: React.MouseEvent) => void;
-}) {
-  const [hovered, setHovered] = useState(false);
+}
 
-  // Rough width estimate so the tooltip background comfortably fits the
-  // label without measuring actual rendered text (SVG has no easy API
-  // for that without a layout pass).
+export function PinDot({x, y, pinId, label, highlighted = false, onClick}: PinDotProps) {
+  const [hovered, setHovered] = useState(false);
   const tooltipWidth = Math.max(28, label.length * 6.2 + 12);
   
   return (

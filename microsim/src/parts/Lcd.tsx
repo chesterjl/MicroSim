@@ -5,19 +5,15 @@ import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 import { useCircuitStore } from "../store/circuitStore";
 
-export function LcdPart({
-  part,
-  selected,
-  pinStates,
-  netlist,
-  onPinClick,
-}: {
+interface LcdPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function LcdPart({part, selected, pinStates, netlist, onPinClick}: LcdPartProps) {
   const def = partDefinitions["lcd-16x2-i2c"];
   const powered = netlist?.isPowered(part.id) ?? false;
 

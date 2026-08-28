@@ -4,19 +4,15 @@ import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function ArduinoUnoPart({
-  part,
-  selected,
-  pinStates,
-  isSimulating,
-  onPinClick,
-}: {
+interface ArduinoUnoPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   isSimulating?: boolean;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinClick}: ArduinoUnoPartProps) {
   const def = partDefinitions["arduino-uno"];
   const halfW = (def.widthUnits * GRID) / 2;
   const halfH = (def.heightUnits * GRID) / 2;

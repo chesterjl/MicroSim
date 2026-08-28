@@ -246,27 +246,9 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 12,
     heightUnits: 20,
     pins: [
-      {
-        id: "signal",
-        label: "SIG",
-        x: -2.5,
-        y: -10,
-        type: "digital",
-      },
-      {
-        id: "vcc",
-        label: "VCC",
-        x: 0,
-        y: -10,
-        type: "power",
-      },
-      {
-        id: "gnd",
-        label: "GND",
-        x: 2.5,
-        y: -10,
-        type: "ground",
-      },
+      { id: "signal", label: "SIG", x: -2.5, y: -10, type: "digital" },
+      { id: "vcc", label: "VCC", x: 0, y: -10, type: "power" },
+      { id: "gnd", label: "GND", x: 2.5, y: -10, type: "ground" },
     ],
     defaultProperties: {
       angle: 90,
@@ -317,7 +299,20 @@ export const partDefinitions: Record<string, PartDefinition> = {
       backlight: true,
     },
   },
-  
+
+  "rgb-led": {
+    type: "rgb-led",
+    displayName: "RGB LED",
+    widthUnits: 4,
+    heightUnits: 3,
+    pins: [
+      { id: "red", label: "Red", x: -1.5, y: 1.8, type: "passive" },
+      { id: "green", label: "Green", x: -0.5, y: 1.8, type: "passive" },
+      { id: "blue", label: "Blue", x: 0.5, y: 1.8, type: "passive" },
+      { id: "gnd", label: "GND", x: 1.5, y: 1.8, type: "ground" },
+    ],
+    defaultProperties: {},
+  },
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

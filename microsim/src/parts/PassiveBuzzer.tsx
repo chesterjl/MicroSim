@@ -4,31 +4,26 @@ import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function PassiveBuzzerPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface PassiveBuzzerPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function PassiveBuzzerPart({part, selected, pinStates, onPinClick}: PassiveBuzzerPartProps) {
   const def = partDefinitions["passive-buzzer"];
 
   const bodyRadius = 4 * GRID;
   const pinY = 5 * GRID;
 
   return (
-    <g
-      transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}
-    >
+    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+
       {/* Physical buzzer pins / legs */}
       {def.pins.map((pin) => {
         const pinX = pin.x * GRID;
-
         return (
           <line
             key={`leg-${pin.id}`}

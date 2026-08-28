@@ -4,28 +4,23 @@ import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function ActiveBuzzerPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface ActiveBuzzerPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function ActiveBuzzerPart({part, selected, pinStates, onPinClick}: ActiveBuzzerPartProps) {
   const def = partDefinitions["active-buzzer"];
 
   const bodyRadius = 4 * GRID;
   const pinY = 5 * GRID;
 
   return (
-    <g
-      transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}
-    >
-      {/* Physical buzzer pins / legs */}
+    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      
       {def.pins.map((pin) => {
         const pinX = pin.x * GRID;
 
@@ -87,8 +82,7 @@ export function ActiveBuzzerPart({
       />
 
       {/* Speaker ring */}
-      <path
-        d={`
+      <path d={`
           M ${-1.7 * GRID} ${-0.9 * GRID}
           A ${1.9 * GRID} ${1.9 * GRID} 0 0 1
           ${1.7 * GRID} ${-0.9 * GRID}
@@ -98,8 +92,7 @@ export function ActiveBuzzerPart({
         strokeWidth={0.7}
       />
 
-      <path
-        d={`
+      <path d={`
           M ${-1.7 * GRID} ${0.9 * GRID}
           A ${1.9 * GRID} ${1.9 * GRID} 0 0 0
           ${1.7 * GRID} ${0.9 * GRID}

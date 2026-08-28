@@ -4,17 +4,14 @@ import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function PushbuttonPart({
-  part,
-  selected,
-  onToggle,
-  pinStates,
-}: {
+interface PushbuttonPartProps {
   part: PartInstance;
   selected: boolean;
   onToggle?: (partId: string) => void;
   pinStates?: Record<string, NetState>;
-}) {
+}
+
+export function PushbuttonPart({part, selected, onToggle, pinStates}: PushbuttonPartProps) {
   const pressed = Boolean(part.properties.pressed);
   const def = partDefinitions.pushbutton;
 

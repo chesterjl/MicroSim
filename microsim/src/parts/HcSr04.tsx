@@ -4,17 +4,14 @@ import type { NetState } from "../engine/netlist";
 import { DEFAULT_ULTRASONIC_DISTANCE_CM, partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function HcSr04Part({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface HcSr04PartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function HcSr04Part({part, selected, pinStates, onPinClick}: HcSr04PartProps) {
   const def = partDefinitions["ultrasonic-hcsr04"];
 
   const distanceCm = Number(part.properties?.distanceCm ?? DEFAULT_ULTRASONIC_DISTANCE_CM);

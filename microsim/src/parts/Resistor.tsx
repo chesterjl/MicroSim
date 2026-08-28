@@ -72,17 +72,14 @@ export function formatResistance(ohms: number): string {
   return `${ohms}`;
 }
 
-export function ResistorPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface ResistorPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function ResistorPart({part, selected, pinStates, onPinClick}: ResistorPartProps) {
   const resistance = (part.properties?.resistance as number) ?? 220;
   const bands = getResistorColorBands(resistance);
   const formattedText = formatResistance(resistance);

@@ -9,6 +9,8 @@ import { DEFAULT_SKETCH } from "../constants/constant";
 import { createI2CBus, createHd44780Device } from "../engine/i2cLcdDevice";
 import type { I2CDevice } from "../engine/i2cLcdDevice";
 import { setBuzzerTone, stopBuzzerTone, stopAllBuzzers, removeBuzzerVoice } from "../engine/buzzerVoice.ts";
+import { createServoDevice } from "../engine/servoDevice";
+import type { ServoExternalDevice } from "../engine/servoDevice";
 
 interface LcdScreenState {
   lines: [string, string];
@@ -35,6 +37,7 @@ interface CircuitState {
   consoleLog: string[];
   lcdScreens: Record<string, LcdScreenState>;
   buzzerStates: Record<string, BuzzerState>;
+  servoAngles: Record<string, number>;
 
   addPart: (type: string, x: number, y: number) => void;
   movePart: (id: string, x: number, y: number) => void;
@@ -291,6 +294,32 @@ function setupPassiveBuzzerDevices(
   return devices;
 }
 
+function setupServoDevices(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  parts: PartInstance[],
+  wires: Wire[],
+  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
+  onAngleChange: (partId: string, angleDegrees: number) => void
+): ServoExternalDevice[] {
+  const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
+  const devices: ServoExternalDevice[] = [];
+
+  for (const part of parts) {
+    if (part.type !== "servo-mg90") continue; // must match the type string exactly
+
+    const signalPin = wiringNetlist.getConnectedArduinoPin(part.id, "signal");
+    if (signalPin === null) continue;
+
+    const { port, bit } = getPortAndBit(signalPin, portB, portD);
+    devices.push(
+      createServoDevice(port, bit, signalPin, (angle) => onAngleChange(part.id, angle))
+    );
+  }
+
+  return devices;
+}
+
 /**
  * Builds the I2C bus's device list -- currently just LCD screens, one per
  * "lcd-16x2-i2c" part in the circuit that's actually powered (VCC + GND
@@ -371,6 +400,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   consoleLog: [],
   lcdScreens: {},
   buzzerStates: {},
+  servoAngles: {},  
 
   addPart: (type, x, y) => {
     const id = nanoid(6);
@@ -465,8 +495,8 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     stopAllBuzzers();
 
     const token = get().runToken + 1;
-    set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"], lcdScreens: {}, buzzerStates: {} });
-
+    set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"], lcdScreens: {}, buzzerStates: {}, servoAngles: {} });
+    
     const pushLog = (line: string) => set((s) => ({ consoleLog: [...s.consoleLog.slice(-99), line] }));
 
     try {
@@ -516,7 +546,19 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
         }
       );
 
-      const externalDevices = [...ultrasonicDevices, ...passiveBuzzerDevices];
+      const servoDevices = setupServoDevices(
+        portB,
+        portD,
+        initialState.parts,
+        initialState.wires,
+        initialState.digitalPins,
+        (partId, angle) => {
+          console.log("[servo] angle", partId, angle);
+          set((s) => ({ servoAngles: { ...s.servoAngles, [partId]: angle } }));
+        }
+      );
+
+      const externalDevices = [...ultrasonicDevices, ...passiveBuzzerDevices, ...servoDevices];
       const claimedPins = new Set(externalDevices.flatMap((d) => d.claimedPins));
 
       // --- I2C / LCD setup ---------------------------------------------

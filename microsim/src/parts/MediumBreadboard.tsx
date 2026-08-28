@@ -2,12 +2,7 @@ import type { BreadboardProps } from "../types/breadboard";
 import { GRID } from "../types/types";
 import { PinDot } from "./PinDot";
 
-export function MediumBreadboardPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: BreadboardProps) {
+export function MediumBreadboardPart({part, selected, pinStates, onPinClick}: BreadboardProps) {
   const cols = 30;
   const colOffset = -Math.floor(cols / 2);
   const width = (cols + 4) * GRID;

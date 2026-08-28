@@ -3,34 +3,39 @@ import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
+import { useCircuitStore } from "../store/circuitStore";
 
-export function ServoMG90Part({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface ServoMG90PartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function ServoMG90Part({part, selected, pinStates, onPinClick}: ServoMG90PartProps) {
   const def = partDefinitions["servo-mg90"];
 
-  const bodyWidth = 10 * GRID;
+  // Live angle while the sketch is running (driven by servoDevice.ts via
+  // the store); falls back to the part's static `angle` property so it
+  // still shows a sensible pose before Run is pressed.
+  const liveAngle = useCircuitStore((s) => s.servoAngles?.[part.id]);
+  const staticAngle = (part.properties?.angle as number) ?? 90;
+  const angle = liveAngle ?? staticAngle;
+
+  // Horn rotates around the shaft center; 90 degrees = pointing straight
+  // up (its resting/default draw position), so offset by -90.
+  const hornRotation = angle - 90;
+
+  // CHANGED: body narrowed from 10*GRID -> 8*GRID so it reads less boxy
+  // next to the horn/gear.
+  const bodyWidth = 8 * GRID;
   const bodyTop = -7 * GRID;
-  const bodyBottom = 7 * GRID;
 
   // Must match partDefinition.ts
   const pinY = -10 * GRID;
 
   return (
-    <g
-      transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}
-    >
-      {/* =========================
-          3-pin servo connector
-         ========================= */}
+    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
 
       {/* Connector cable/neck */}
       <rect
@@ -69,10 +74,6 @@ export function ServoMG90Part({
         />
       ))}
 
-      {/* =========================
-          Physical pin leads
-         ========================= */}
-
       {def.pins.map((pin) => (
         <line
           key={`leg-${pin.id}`}
@@ -86,10 +87,7 @@ export function ServoMG90Part({
         />
       ))}
 
-      {/* =========================
-          Main servo body
-         ========================= */}
-
+      {/* Main Servo Body */}
       <rect
         x={-bodyWidth / 2}
         y={bodyTop}
@@ -103,9 +101,9 @@ export function ServoMG90Part({
 
       {/* Left mounting rail */}
       <rect
-        x={-5.8 * GRID}
+        x={-4.8 * GRID}
         y={-5.5 * GRID}
-        width={1.5 * GRID}
+        width={1.3 * GRID}
         height={11 * GRID}
         rx={0.3 * GRID}
         fill="#0F6FA8"
@@ -115,9 +113,9 @@ export function ServoMG90Part({
 
       {/* Right mounting rail */}
       <rect
-        x={4.3 * GRID}
+        x={3.5 * GRID}
         y={-5.5 * GRID}
-        width={1.5 * GRID}
+        width={1.3 * GRID}
         height={11 * GRID}
         rx={0.3 * GRID}
         fill="#0F6FA8"
@@ -126,54 +124,13 @@ export function ServoMG90Part({
       />
 
       {/* Mounting holes */}
-      <circle
-        cx={-5.05 * GRID}
-        cy={-4.5 * GRID}
-        r={0.75 * GRID}
-        fill="#0A5A88"
-        stroke="#38BDF8"
-        strokeWidth={0.7}
-      />
+      <circle cx={-4.15 * GRID} cy={-4.5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
+      <circle cx={4.15 * GRID} cy={-4.5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
+      <circle cx={-4.15 * GRID} cy={5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
+      <circle cx={4.15 * GRID} cy={5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
 
-      <circle
-        cx={5.05 * GRID}
-        cy={-4.5 * GRID}
-        r={0.75 * GRID}
-        fill="#0A5A88"
-        stroke="#38BDF8"
-        strokeWidth={0.7}
-      />
-
-      <circle
-        cx={-5.05 * GRID}
-        cy={5 * GRID}
-        r={0.75 * GRID}
-        fill="#0A5A88"
-        stroke="#38BDF8"
-        strokeWidth={0.7}
-      />
-
-      <circle
-        cx={5.05 * GRID}
-        cy={5 * GRID}
-        r={0.75 * GRID}
-        fill="#0A5A88"
-        stroke="#38BDF8"
-        strokeWidth={0.7}
-      />
-
-      {/* =========================
-          Gear / servo output
-         ========================= */}
-
-      <circle
-        cx={0}
-        cy={0}
-        r={2.8 * GRID}
-        fill="#E5E7EB"
-        stroke="#6B7280"
-        strokeWidth={1}
-      />
+      {/* Gear / servo output */}
+      <circle cx={0} cy={0} r={2.8 * GRID} fill="#E5E7EB" stroke="#6B7280" strokeWidth={1} />
 
       {/* Gear teeth */}
       <path
@@ -201,49 +158,28 @@ export function ServoMG90Part({
         strokeWidth={0.8}
       />
 
-      {/* Output shaft */}
-      <circle
-        cx={0}
-        cy={0}
-        r={1.15 * GRID}
-        fill="#D1D5DB"
-        stroke="#6B7280"
-        strokeWidth={0.8}
-      />
+      {/* Output shaft (stays fixed -- only the horn above rotates) */}
+      <circle cx={0} cy={0} r={1.15 * GRID} fill="#D1D5DB" stroke="#6B7280" strokeWidth={0.8} />
+      <circle cx={0} cy={0} r={0.45 * GRID} fill="#71717A" />
 
-      <circle
-        cx={0}
-        cy={0}
-        r={0.45 * GRID}
-        fill="#71717A"
-      />
-
-      {/* =========================
-          Servo horn
-         ========================= */}
-
-      <rect
-        x={-0.65 * GRID}
-        y={-5.3 * GRID}
-        width={1.3 * GRID}
-        height={5.3 * GRID}
-        rx={0.6 * GRID}
-        fill="#E5E7EB"
-        stroke="#9CA3AF"
-        strokeWidth={0.8}
-      />
-
-      {/* Horn holes */}
-      {[-3.8, -2.4, -1].map((y, i) => (
-        <circle
-          key={`horn-hole-${i}`}
-          cx={0}
-          cy={y * GRID}
-          r={0.28 * GRID}
-          fill="#6B7280"
+      {/* Servo horn -- rotates live with the simulated angle */}
+      <g transform={`rotate(${hornRotation})`} style={{ transition: "transform 30ms linear" }}>
+        <rect
+          x={-0.6 * GRID}
+          y={-7 * GRID}
+          width={1.2 * GRID}
+          height={7 * GRID}
+          rx={0.6 * GRID}
+          fill="#F4F4F5"
+          stroke="#9CA3AF"
+          strokeWidth={0.8}
         />
-      ))}
 
+        {/* Horn holes, spaced out along the longer arm */}
+        {[-5.6, -4, -2.4, -0.9].map((y, i) => (
+          <circle key={`horn-hole-${i}`} cx={0} cy={y * GRID} r={0.26 * GRID} fill="#6B7280" />
+        ))}
+      </g>
 
       {def.pins.map((pin) => (
         <PinDot

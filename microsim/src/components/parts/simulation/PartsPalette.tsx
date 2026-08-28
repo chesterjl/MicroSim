@@ -22,6 +22,7 @@ const ICONS = {
   activeBuzzer: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="11" fill="%2318181B" stroke="%233F3F46" stroke-width="1.5"/><circle cx="16" cy="16" r="7" fill="%2309090B" stroke="%2352525B" stroke-width="1"/><circle cx="16" cy="16" r="4" fill="%2318181B"/><circle cx="16" cy="16" r="1.5" fill="%2309090B"/><path d="M25 11C27 13 27 19 25 21" stroke="%23F59E0B" stroke-width="1.5" stroke-linecap="round"/><path d="M27 9C30 12 30 20 27 23" stroke="%23F59E0B" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/><path d="M7 25V29" stroke="%23A1A1AA" stroke-width="2" stroke-linecap="round"/><path d="M23 25V29" stroke="%2371717A" stroke-width="2" stroke-linecap="round"/></svg>`,
   passiveBuzzer: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="11" fill="%2318181B" stroke="%233F3F46" stroke-width="1.5"/><circle cx="16" cy="16" r="7" fill="%2309090B" stroke="%2352525B" stroke-width="1"/><circle cx="16" cy="16" r="4" fill="%2318181B"/><circle cx="16" cy="16" r="1.5" fill="%2309090B"/><path d="M10 9C13 7 19 7 22 9" stroke="%23A1A1AA" stroke-width="1.2" stroke-linecap="round"/><path d="M24 11C26 13 26 19 24 21" stroke="%23F59E0B" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/><path d="M26 9C29 12 29 20 26 23" stroke="%23F59E0B" stroke-width="1" stroke-linecap="round" opacity="0.6"/><path d="M7 25V29" stroke="%23A1A1AA" stroke-width="2" stroke-linecap="round"/><path d="M23 25V29" stroke="%2371717A" stroke-width="2" stroke-linecap="round"/></svg>`,
   servoMG90: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="5" width="14" height="23" rx="2" fill="%231684C4" stroke="%23075585" stroke-width="1.5"/><rect x="11" y="2" width="10" height="5" rx="1" fill="%2318181B"/><circle cx="16" cy="16" r="4" fill="%23E5E7EB" stroke="%236B7280"/><circle cx="16" cy="16" r="1.5" fill="%2371717A"/><rect x="15" y="8" width="2" height="8" rx="1" fill="%23F3F4F6"/><circle cx="16" cy="10" r="0.5" fill="%2371717A"/><circle cx="16" cy="12.5" r="0.5" fill="%2371717A"/><circle cx="16" cy="14.5" r="0.5" fill="%2371717A"/></svg>`,
+  rgbLed: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 21V29" stroke="%23A1A1AA" stroke-width="2" stroke-linecap="round"/><path d="M13.3 21V28" stroke="%2371717A" stroke-width="2" stroke-linecap="round"/><path d="M18.7 21V29" stroke="%2371717A" stroke-width="2" stroke-linecap="round"/><path d="M24 21V28" stroke="%2371717A" stroke-width="2" stroke-linecap="round"/><path d="M7 19.5C7 19.2239 7.22386 19 7.5 19H24.5C24.7761 19 25 19.2239 25 19.5V21C25 21.2761 24.7761 21.5 24.5 21.5H7.5C7.22386 21.5 7 21.2761 7 21V19.5Z" fill="%233F3F46"/><path d="M8 14C8 10.134 11.582 7 16 7C20.418 7 24 10.134 24 14V20H8V14Z" fill="%2318181B" stroke="%233F3F46" stroke-width="1"/><circle cx="12" cy="15" r="2.2" fill="%23EF4444"/><circle cx="16" cy="15" r="2.2" fill="%2322C55E"/><circle cx="20" cy="15" r="2.2" fill="%233B82F6"/><path d="M10.5 10.5C12 9.3 14 8.7 16 8.7" stroke="%23FFFFFF" stroke-width="1.4" stroke-linecap="round" opacity="0.45"/></svg>`,
 };
 
 const PART_CATALOG: PartOption[] = [
@@ -31,7 +32,9 @@ const PART_CATALOG: PartOption[] = [
   { type: "pushbutton", label: "Pushbutton", category: "Basic", icon: ICONS.pushbutton },
   { type: "potentiometer", label: "Potentiometer", category: "Basic", icon: ICONS.potentiometer },
   { type: "battery", label: "9V Battery", category: "Basic", icon: ICONS.battery },
-    
+  { type: "active-buzzer", label: "Active Buzzer", category: "Basic", icon: ICONS.activeBuzzer },
+  { type: "passive-buzzer", label: "Passive Buzzer", category: "Basic", icon: ICONS.passiveBuzzer },
+
   { type: "ultrasonic-hcsr04", label: "Ultrasonic Sensor (HC-SR04)", category: "Sensor", icon: ICONS.ultrasonic },
 
   { type: "breadboard-mini", label: "Small Breadboard", category: "Breadboards", icon: ICONS.breadboard },
@@ -42,9 +45,7 @@ const PART_CATALOG: PartOption[] = [
   { type: "esp32", label: "ESP32", category: "Microcontrollers", icon: ICONS.esp32 },
 
   { type: "lcd-16x2-i2c", label: "LCD 16x2 (I2C)", category: "Display", icon: ICONS.lcd },
-
-  { type: "active-buzzer", label: "Active Buzzer", category: "Basic", icon: ICONS.activeBuzzer },
-  { type: "passive-buzzer", label: "Passive Buzzer", category: "Basic", icon: ICONS.passiveBuzzer },
+  { type: "rgb-led", label: "RGB LED", category: "Display", icon: ICONS.rgbLed },
 
   { type: "servo-mg90", label: "Servo MG90", category: "Motors", icon: ICONS.servoMG90},
 ];

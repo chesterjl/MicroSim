@@ -4,17 +4,15 @@ import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function PotentiometerPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface PotentiometerPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function PotentiometerPart({part, selected, pinStates, onPinClick}: PotentiometerPartProps) {
+  
   const def = partDefinitions.potentiometer;
   const maxResistance = (part.properties?.maxResistance as number) ?? 10000;
   // 0 = fully counter-clockwise (all resistance on pin2's side), 1 = fully
