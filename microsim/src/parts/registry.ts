@@ -17,6 +17,7 @@ import { PassiveBuzzerPart } from "./PassiveBuzzer";
 import { ServoMG90Part } from "./ServoMG90";
 import { RgbLedPart } from "./RgbLed";
 import { ToggleSwitchPart } from "./ToggleSwitch";
+import { JoystickPart } from "./Joystick";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -46,5 +47,6 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "servo-mg90": ServoMG90Part,
   "rgb-led": RgbLedPart,
   "toggle-switch": ToggleSwitchPart,
+  joystick: JoystickPart,
 
 };

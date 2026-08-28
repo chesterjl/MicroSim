@@ -114,11 +114,19 @@
     }
 
     for (const part of parts) {
+      if (part.type !== "joystick") continue;
+      if (part.properties?.pressed) {
+        uf.union(pinKey(part.id, "sw"), pinKey(part.id, "gnd"));
+      }
+    }
+
+    for (const part of parts) {
       if (part.type !== "toggle-switch") continue;
       if (part.properties?.on) {
         uf.union(pinKey(part.id, "pin1"), pinKey(part.id, "pin2"));
       }
     }
+
 
     const breadboards = parts.filter((p) => p.type.startsWith("breadboard"));
     for (const part of breadboards) {
@@ -278,6 +286,24 @@
       const pin1V = resolveNetVoltage(pin1Root);
       const pin2V = resolveNetVoltage(pin2Root);
       netVoltageOverride.set(wiperRoot, pin1V + (pin2V - pin1V) * wiperPosition);
+    }
+
+    for (const part of parts) {
+      if (part.type !== "joystick") continue;
+
+      const vccRoot = uf.find(pinKey(part.id, "vcc"));
+      const gndRoot = uf.find(pinKey(part.id, "gnd"));
+      const powered = netPower.has(vccRoot) && netGround.has(gndRoot);
+      const vccVoltage = powered ? resolveNetVoltage(vccRoot) : 0;
+
+      const xPos = (part.properties?.x as number) ?? 0.5;
+      const yPos = (part.properties?.y as number) ?? 0.5;
+
+      const vrxRoot = uf.find(pinKey(part.id, "vrx"));
+      const vryRoot = uf.find(pinKey(part.id, "vry"));
+
+      netVoltageOverride.set(vrxRoot, powered ? vccVoltage * xPos : 0);
+      netVoltageOverride.set(vryRoot, powered ? vccVoltage * yPos : 0);
     }
 
     function getConnectedArduinoPinImpl(partId: string, pinId: string): number | null {

@@ -325,7 +325,22 @@ export const partDefinitions: Record<string, PartDefinition> = {
     ],
     defaultProperties: { on: false },
   },
-  
+
+  "joystick": {
+    type: "joystick",
+    displayName: "Joystick",
+    widthUnits: 11,
+    heightUnits: 10,
+    pins: [
+      { id: "gnd", label: "GND", x: -4, y: 4, type: "ground" },
+      { id: "vcc", label: "+5V", x: -2, y: 4, type: "power" },
+      { id: "vrx", label: "VRx", x: 0, y: 4, type: "analog" },
+      { id: "vry", label: "VRy", x: 2, y: 4, type: "analog" },
+      { id: "sw", label: "SW", x: 4, y: 4, type: "digital" },
+    ],
+    defaultProperties: { x: 0.5, y: 0.5, pressed: false },
+  },
+
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {
