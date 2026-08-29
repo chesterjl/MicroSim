@@ -16,17 +16,14 @@ function isRedKey(r: number, c: number) {
   return c === 3 || (r === 3 && (c === 0 || c === 2));
 }
 
-export function KeypadPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface KeypadPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function KeypadPart({ part, selected, pinStates, onPinClick}: KeypadPartProps) {
   const def = partDefinitions["keypad-4x4"];
   const updatePartProperties = useCircuitStore((s) => s.updatePartProperties);
 

@@ -261,45 +261,30 @@ export const partDefinitions: Record<string, PartDefinition> = {
     type: "lcd-16x2-i2c",
     displayName: "LCD 16x2 I2C",
     widthUnits: 36,
-    heightUnits: 12,
+    heightUnits: 8,
     pins: [
-      {
-        id: "vcc",
-        label: "VCC",
-        x: -18,
-        y: -4,
-        type: "power",
-      },
-      {
-        id: "gnd",
-        label: "GND",
-        x: -18,
-        y: -1,
-        type: "ground",
-      },
-      {
-        id: "sda",
-        label: "SDA",
-        x: -18,
-        y: 2,
-        type: "digital",
-      },
-      {
-        id: "scl",
-        label: "SCL",
-        x: -18,
-        y: 5,
-        type: "digital",
-      },
+      { id: "gnd", label: "GND",  x: -18,   y: -3, type: "passive" },
+      { id: "vcc", label: "VCC", x: -18, y: -1.5, type: "passive" },
+      { id: "sda", label: "SDA", x: -18, y: 0, type: "digital" },
+      { id: "scl",label: "SCL",x: -18, y: 1.5, type: "digital" },
     ],
-    defaultProperties: {
-      address: 0x27,
-      cols: 16,
-      rows: 2,
-      backlight: true,
-    },
+    defaultProperties: { address: 0x27,cols: 16,rows: 2,backlight: true },
   },
 
+  "lcd-20x4-i2c": {
+    type: "lcd-20x4-i2c",
+    displayName: "LCD 20x4 I2C",
+    widthUnits: 44,
+    heightUnits: 12,
+    pins: [
+      { id: "gnd",label: "GND",x: -22,y: -5,type: "passive" },
+      { id: "vcc",label: "VCC",x: -22,y: -3.5,type: "passive" },
+      { id: "sda",label: "SDA",x: -22,y: -2,type: "digital" },
+      { id: "scl",label: "SCL",x: -22,y: -0.5,type: "digital" },
+    ],
+    defaultProperties: { address: 0x27,cols: 20,rows: 4,backlight: true },
+  },
+  
   "rgb-led": {
     type: "rgb-led",
     displayName: "RGB LED",
@@ -320,8 +305,8 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 4,
     heightUnits: 4,
     pins: [
-      { id: "pin1", label: "1", x: -1.5, y: 2, type: "digital" },
-      { id: "pin2", label: "2", x: 1.5, y: 2, type: "digital" },
+      { id: "pin1", label: "1", x: -1.5, y: 1.7, type: "digital" },
+      { id: "pin2", label: "2", x: 1.5, y: 1.7, type: "digital" },
     ],
     defaultProperties: { on: false },
   },
@@ -392,6 +377,7 @@ export const partDefinitions: Record<string, PartDefinition> = {
     pins: [], // wireless -- broadcasts to any powered ir-receiver on canvas, no wiring
     defaultProperties: { lastButton: null, lastCode: null, sentToken: 0 },
   },
+
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

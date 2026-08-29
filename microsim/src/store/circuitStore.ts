@@ -14,13 +14,13 @@ import type { ServoExternalDevice } from "../engine/servoDevice";
 import { createIrReceiverDevice, IR_BUTTON_CODES } from "../engine/irRemote";
 
 interface LcdScreenState {
-  lines: [string, string];
+  lines: string[]
   backlightOn: boolean;
 }
 
 interface BuzzerState {
   active: boolean;
-  frequency: number; // Hz -- 0 means silent
+  frequency: number; 
 }
 
 interface CircuitState {
@@ -348,21 +348,33 @@ function setupLcdI2CDevices(
   parts: PartInstance[],
   wires: Wire[],
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
-  onScreenChange: (partId: string, lines: [string, string], backlightOn: boolean) => void
+  onScreenChange: (partId: string, lines: string[], backlightOn: boolean) => void
 ): I2CDevice[] {
   const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
   const devices: I2CDevice[] = [];
 
   for (const part of parts) {
-    if (part.type !== "lcd-16x2-i2c") continue;
+    if (part.type !== "lcd-16x2-i2c" && part.type !== "lcd-20x4-i2c") continue;
+
+    const dims =
+      part.type === "lcd-20x4-i2c"
+        ? { cols: 20, rows: 4 }
+        : { cols: 16, rows: 2 };
+
     const powered = wiringNetlist.isPowered(part.id);
     if (!powered) continue;
 
-    const address = 0x27; // matches LiquidCrystal_I2C lcd(0x27, 16, 2) -- the standard default address
+    const address = 0x27;
+
     devices.push(
-      createHd44780Device(address, (lines, backlightOn) => {
-        onScreenChange(part.id, lines, backlightOn);
-      })
+      createHd44780Device(
+        address,
+        dims.cols,
+        dims.rows,
+        (lines, backlightOn) => {
+          onScreenChange(part.id, lines, backlightOn);
+        }
+      )
     );
   }
 
@@ -648,7 +660,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
             console.log("[I2C] ACK:", ack);
             twi.completeConnect(ack);
           },
-
+          
           writeByte: (value: number) => {
             console.log("[I2C] writeByte", value.toString(16));
             const ack = bus.writeByte(value);

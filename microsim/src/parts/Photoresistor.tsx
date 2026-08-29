@@ -4,17 +4,14 @@ import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function PhotoresistorPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface PhotoresistorPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function PhotoresistorPart({part, selected, pinStates, onPinClick}: PhotoresistorPartProps) {
   const def = partDefinitions.photoresistor;
   const lightLevel = (part.properties?.lightLevel as number) ?? 0.5;
 
@@ -29,11 +26,7 @@ export function PhotoresistorPart({
   const trackX = bodyRx * 0.45;
 
   return (
-    <g
-      transform={`translate(${part.x}, ${part.y}) rotate(${
-        part.rotation ?? 0
-      })`}
-    >
+    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
       {/* Legs */}
       <line
         x1={-1 * GRID}

@@ -22,8 +22,8 @@ export interface I2CDevice {
  * NOTE: the exact shape AVRTWI expects here (method names: start/stop/
  * connectToSlave/writeByte/readByte) is inferred from avr8js's typical
  * TWIEventHandler pattern (matching NoopTWIEventHandler, which is
- * exported and worth checking directly if anything below doesn't line
- * up -- `node -e "console.log(require('avr8js').NoopTWIEventHandler.toString())"`
+ * exported and worth checking directly if anything below doesn't
+ * line up -- `node -e "console.log(require('avr8js').NoopTWIEventHandler.toString())"`
  * will print its actual method names straight from your installed version.
  */
 export function createI2CBus(devices: I2CDevice[]) {
@@ -39,9 +39,9 @@ export function createI2CBus(devices: I2CDevice[]) {
       activeDevice = null;
     },
     connectToSlave: (addr: number, _write: boolean) => {
-      const device = devices.find((d) => d.address === addr);
+      const device = devices.length === 1 ? devices[0] : devices.find((d) => d.address === addr);
       activeDevice = device ?? null;
-      return device !== undefined; // ACK only if we actually have this device
+      return device !== undefined;
     },
     writeByte: (value: number) => {
       if (!activeDevice) return false;
@@ -55,8 +55,8 @@ export function createI2CBus(devices: I2CDevice[]) {
 }
 
 // PCF8574 I/O-expander pin mapping used by the "LiquidCrystal I2C"
-// (Frank de Brabander) library -- the standard one virtually every I2C
-// LCD tutorial uses. Each I2C byte sets these 8 output pins at once.
+// (Frank de Brabander) library -- the standard one virtually every
+// I2C LCD tutorial uses. Each I2C byte sets these 8 output pins at once.
 const RS_BIT = 0x01;
 // RW_BIT = 0x02 -- present on the wire but unused here, we don't model reads
 const EN_BIT = 0x04;
@@ -72,55 +72,83 @@ const BACKLIGHT_BIT = 0x08;
  * real byte.
  *
  * Known simplification: only Clear Display (0x01) and Set DDRAM Address
- * (cursor position, 0x80+addr) commands are interpreted -- enough to
- * correctly track what lcd.print()/lcd.setCursor()/lcd.clear() actually
- * display. Other commands (function set, display on/off, entry mode,
- * custom characters) are accepted (ACKed) but otherwise ignored, since
- * they don't affect what text ends up on screen for typical sketches.
+ * (0x80+addr) commands are interpreted -- enough to correctly track
+ * what lcd.print()/lcd.setCursor()/lcd.clear() actually display.
+ * Other commands (function set, display on/off, entry mode, custom
+ * characters) are accepted (ACKed) but otherwise ignored, since they
+ * don't affect what text ends up on screen for typical sketches.
  */
 export function createHd44780Device(
   address: number,
-  onChange: (lines: [string, string], backlightOn: boolean) => void
+  cols: number,
+  rowCount: number,
+  onChange: (lines: string[], backlightOn: boolean) => void
 ): I2CDevice {
   let lastByte = 0;
   let backlightOn = true;
   let highNibble: number | null = null;
   let rsForPendingByte = 0;
 
-  const rows: string[][] = [Array(16).fill(" "), Array(16).fill(" ")];
+  const rows: string[][] = Array.from(
+    { length: rowCount },
+    () => Array(cols).fill(" ")
+  );
+
   let cursorRow = 0;
   let cursorCol = 0;
 
+  const ROW_OFFSETS_2 = [0x00, 0x40];
+  const ROW_OFFSETS_4 = [0x00, 0x40, 0x14, 0x54];
+
   function emit() {
-    onChange([rows[0].join(""), rows[1].join("")], backlightOn);
+    onChange(rows.map((r) => r.join("")), backlightOn);
   }
 
   function handleFullByte(rs: number, byte: number) {
     if (rs === 0) {
       if (byte === 0x01) {
         // Clear display
-        rows[0] = Array(16).fill(" ");
-        rows[1] = Array(16).fill(" ");
+        for (let row = 0; row < rowCount; row++) {
+          rows[row] = Array(cols).fill(" ");
+        }
+
         cursorRow = 0;
         cursorCol = 0;
         emit();
       } else if ((byte & 0x80) !== 0) {
-        // Set DDRAM address -- HD44780 16x2 uses 0x40 as row 2's base address.
+        // Set DDRAM address -- HD44780 uses different row offsets
+        // depending on whether the display is 16x2 or 20x4.
         const addr = byte & 0x7f;
-        if (addr >= 0x40) {
-          cursorRow = 1;
-          cursorCol = addr - 0x40;
-        } else {
-          cursorRow = 0;
-          cursorCol = addr;
+
+        const rowOffsets =
+          rowCount === 4 ? ROW_OFFSETS_4 : ROW_OFFSETS_2;
+
+        let matchedRow = 0;
+        let matchedOffset = rowOffsets[0];
+
+        for (let row = 0; row < rowOffsets.length; row++) {
+          if (rowOffsets[row] <= addr && rowOffsets[row] >= matchedOffset) {
+            matchedRow = row;
+            matchedOffset = rowOffsets[row];
+          }
         }
+
+        cursorRow = matchedRow;
+        cursorCol = addr - matchedOffset;
       }
+
       // Function set / display control / entry mode: accepted, no-op.
     } else {
       // Data byte -- a printable character at the current cursor position.
-      if (cursorCol >= 0 && cursorCol < 16 && (cursorRow === 0 || cursorRow === 1)) {
+      if (
+        cursorCol >= 0 &&
+        cursorCol < cols &&
+        cursorRow >= 0 &&
+        cursorRow < rowCount
+      ) {
         rows[cursorRow][cursorCol] = String.fromCharCode(byte);
       }
+
       cursorCol++;
       emit();
     }
@@ -143,7 +171,10 @@ export function createHd44780Device(
           highNibble = nibble;
           rsForPendingByte = rs;
         } else {
-          handleFullByte(rsForPendingByte, (highNibble << 4) | nibble);
+          handleFullByte(
+            rsForPendingByte,
+            (highNibble << 4) | nibble
+          );
           highNibble = null;
         }
       }

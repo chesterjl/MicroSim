@@ -5,7 +5,7 @@ import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 import { useCircuitStore } from "../store/circuitStore";
 
-interface LcdPartProps {
+interface Lcd16x2I2CPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
@@ -13,82 +13,90 @@ interface LcdPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function LcdPart({part, selected, pinStates, netlist, onPinClick}: LcdPartProps) {
+export function Lcd16x2I2CPart({
+  part,
+  selected,
+  pinStates,
+  netlist,
+  onPinClick,
+}: Lcd16x2I2CPartProps) {
   const def = partDefinitions["lcd-16x2-i2c"];
   const powered = netlist?.isPowered(part.id) ?? false;
 
   const screen = useCircuitStore((s) => s.lcdScreens[part.id]);
-  const lines: [string, string] = screen?.lines ?? ["", ""];
+  const rawLines: string[] = screen?.lines ?? ["", ""];
+  
+  // Format lines strictly to 16 characters
+  const lines = [
+    (rawLines[0] ?? "").padEnd(16, " ").slice(0, 16),
+    (rawLines[1] ?? "").padEnd(16, " ").slice(0, 16),
+  ];
+
   const backlightOn = screen ? screen.backlightOn : powered;
 
-  // Calculates directly from widthUnits (36) and new reduced heightUnits (12)
-  const halfW = (def.widthUnits * GRID) / 2; // 18 * GRID
-  const halfH = (def.heightUnits * GRID) / 2; // 6 * GRID (Much shorter PCB)
+  const halfW = (def.widthUnits * GRID) / 2;
+  const halfH = (def.heightUnits * GRID) / 2;
   const headerEdgeX = -halfW;
 
+  // Outer Bezel dimensions
+  const outerBezelX = -halfW + 18;
+  const outerBezelY = -halfH + 8;
+  const outerBezelW = halfW * 2 - 28;
+  const outerBezelH = halfH * 2 - 16;
+
+  // Screen Glass dimensions inside bezel
+  const screenLeft = outerBezelX + 10;
+  const screenTop = outerBezelY + 8;
+  const screenWidth = outerBezelW - 20;
+  const screenHeight = outerBezelH - 16;
+  const ROWS = 2;
+  const rowHeight = screenHeight / ROWS;
   return (
-    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-      {/* Green PCB Base - Auto-scaled to new shorter height */}
+    <g
+      transform={`translate(${part.x}, ${part.y}) rotate(${
+        part.rotation ?? 0
+      })`}
+    >
+      {/* Green PCB Base */}
       <rect
         x={-halfW}
         y={-halfH}
         width={halfW * 2}
         height={halfH * 2}
-        rx={6}
-        fill="#1ca063"
-        stroke={selected ? "#4da3ff" : "#127a44"}
+        rx={4}
+        fill="#0e7a46"
+        stroke={selected ? "#4da3ff" : "#0a5c34"}
         strokeWidth={selected ? 2.5 : 1.5}
       />
 
-      {/* PCB Corner Mounting Holes */}
-      {[
-        { x: -halfW + 10, y: -halfH + 10 },
-        { x: halfW - 10, y: -halfH + 10 },
-        { x: -halfW + 10, y: halfH - 10 },
-        { x: halfW - 10, y: halfH - 10 },
-      ].map((hole, i) => (
-        <g key={`hole-${i}`} transform={`translate(${hole.x}, ${hole.y})`}>
-          <circle r={4.5} fill="#c9c9c9" />
-          <circle r={2.8} fill="#0a3d24" />
-        </g>
-      ))}
-
-      {/* Top Header Contact Pads */}
-      {Array.from({ length: 16 }).map((_, i) => {
-        const x = -halfW + 14 + i * ((halfW * 2 - 28) / 15);
-        return <rect key={i} x={x - 1.5} y={-halfH - 2} width={3} height={5} fill="#c9c9c9" rx={0.5} />;
-      })}
-
-      {/* Dark Metal Bezel Framework */}
+      {/* Black Outer Bezel/Border */}
       <rect
-        x={-halfW + 20}
-        y={-20}
-        width={halfW * 2 - 40}
-        height={40}
+        x={outerBezelX}
+        y={outerBezelY}
+        width={outerBezelW}
+        height={outerBezelH}
         rx={2}
-        fill="#111827"
-        stroke="#1f2937"
-        strokeWidth={1}
+        fill="#000000"
       />
 
-      {/* Screen Display Glass */}
+      {/* LCD Screen Glass (Blue Theme) */}
       <rect
-        x={-halfW + 25}
-        y={-14}
-        width={halfW * 2 - 50}
-        height={28}
-        rx={1}
+        x={screenLeft}
+        y={screenTop}
+        width={screenWidth}
+        height={screenHeight}
+        rx={2}
         fill={backlightOn ? "#1e3a8a" : "#0f172a"}
       />
 
       {/* Backlight Glow Overlay */}
       {backlightOn && (
         <rect
-          x={-halfW + 25}
-          y={-14}
-          width={halfW * 2 - 50}
-          height={28}
-          rx={1}
+          x={screenLeft}
+          y={screenTop}
+          width={screenWidth}
+          height={screenHeight}
+          rx={2}
           fill="#3b82f6"
           opacity={0.15}
         />
@@ -100,13 +108,13 @@ export function LcdPart({part, selected, pinStates, netlist, onPinClick}: LcdPar
           {lines.map((line, row) => (
             <text
               key={row}
-              x={-halfW + 29}
-              y={row === 0 ? -3 : 8}
-              fontSize={11}
-              fontFamily="'Courier New', monospace"
+              x={screenLeft + 12}
+              y={screenTop + row * rowHeight + rowHeight * 0.72}
+              fontSize={14}
+              fontFamily="monospace"
               fontWeight={700}
               fill="#bfdbfe"
-              letterSpacing={0.8}
+              letterSpacing={2.2}
             >
               {line}
             </text>
@@ -114,8 +122,15 @@ export function LcdPart({part, selected, pinStates, netlist, onPinClick}: LcdPar
         </g>
       )}
 
-      {/* I2C Header Housing (Left Edge) */}
-      <rect x={headerEdgeX - 8} y={-halfH + 6} width={8} height={(halfH - 6) * 2} fill="#1c1c1c" rx={1} />
+      {/* Upper-Left Pin Header Housing */}
+      <rect
+        x={headerEdgeX - 6}
+        y={-halfH + 6}
+        width={6}
+        height={45}
+        fill="#1c1c1c"
+        rx={1}
+      />
 
       {/* Connection Leg Lines */}
       {def.pins.map((pin) => (
@@ -130,12 +145,12 @@ export function LcdPart({part, selected, pinStates, netlist, onPinClick}: LcdPar
         />
       ))}
 
-      {/* Pin Labels on PCB */}
+      {/* Pin Labels */}
       {def.pins.map((pin) => (
         <text
           key={`label-${pin.id}`}
-          x={headerEdgeX + 3}
-          y={pin.y * GRID + 2.5}
+          x={headerEdgeX + 8}
+          y={pin.y * GRID + 2}
           textAnchor="start"
           fontSize={5.5}
           fontWeight={700}

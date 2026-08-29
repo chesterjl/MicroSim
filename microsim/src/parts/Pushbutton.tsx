@@ -9,15 +9,16 @@ interface PushbuttonPartProps {
   selected: boolean;
   onToggle?: (partId: string) => void;
   pinStates?: Record<string, NetState>;
+  onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function PushbuttonPart({part, selected, onToggle, pinStates}: PushbuttonPartProps) {
+export function PushbuttonPart({part, selected, onToggle, pinStates, onPinClick,}: PushbuttonPartProps) {
   const pressed = Boolean(part.properties.pressed);
   const def = partDefinitions.pushbutton;
 
   return (
-    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation})`}>
-      {/* base */}
+    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {/* Base */}
       <rect
         x={-2 * GRID}
         y={-2 * GRID}
@@ -28,7 +29,8 @@ export function PushbuttonPart({part, selected, onToggle, pinStates}: Pushbutton
         stroke={selected ? "#4da3ff" : "#111"}
         strokeWidth={selected ? 2 : 1}
       />
-      {/* cap — click to press/release in simulation mode */}
+
+      {/* Cap — click to press/release in simulation mode */}
       <rect
         x={-1.2 * GRID}
         y={-1.2 * GRID}
@@ -43,6 +45,7 @@ export function PushbuttonPart({part, selected, onToggle, pinStates}: Pushbutton
         }}
       />
 
+      {/* Pins */}
       {def.pins.map((pin) => (
         <PinDot
           key={pin.id}
@@ -51,6 +54,7 @@ export function PushbuttonPart({part, selected, onToggle, pinStates}: Pushbutton
           pinId={pin.id}
           label={pin.label}
           state={pinStates?.[pin.id]}
+          onClick={(e) => onPinClick?.(pin.id, e)}
         />
       ))}
     </g>

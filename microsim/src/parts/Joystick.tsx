@@ -12,17 +12,14 @@ const TRAVEL = BEZEL_RADIUS - KNOB_RADIUS; // how far the knob can move off-cent
 const CLICK_MOVE_THRESHOLD = 3; // px — below this, mouseup counts as a "click" not a drag
 const CENTER_ZONE_FRACTION = 0.25; // inner 25% of bezel radius = the press zone
 
-export function JoystickPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface JoystickPartParts {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function JoystickPart({part, selected, pinStates, onPinClick}: JoystickPartParts) {
   const def = partDefinitions.joystick;
   const updatePartProperties = useCircuitStore((s) => s.updatePartProperties);
 
@@ -141,7 +138,7 @@ export function JoystickPart({
             <circle r={3} fill="#0d3f1f" />
         </g>
         ))}
-        
+
         {/* Title */}
         <text x={-5.5 * GRID + 6} y={3 * GRID - 6} fontSize={6} fontWeight={700} fill="#d9ffe6" fontFamily="sans-serif">
         Analog Joystick

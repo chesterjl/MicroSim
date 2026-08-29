@@ -12,26 +12,44 @@ interface ToggleSwitchPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function ToggleSwitchPart({ part, selected, onToggle, pinStates, onPinClick}: ToggleSwitchPartProps) {
+export function ToggleSwitchPart({part, selected, onToggle, pinStates, onPinClick}: ToggleSwitchPartProps) {
   const on = Boolean(part.properties.on);
   const def = partDefinitions["toggle-switch"];
 
   const bodyHalfW = 1.8 * GRID;
   const bodyTop = -1.8 * GRID;
-  const bodyBottom = 1.6 * GRID;
 
-  // Lever pivots at the top-center of the body and tilts left (off) /
-  // right (on), like a real rocker/toggle switch.
+  const bodyBottom = 1.6 * GRID - 3;
+  const pinY = 2 * GRID - 3;
+
+  // Lever pivots at the top-center of the body.
   const pivotX = 0;
   const pivotY = bodyTop + 4;
   const leverLength = 1.5 * GRID;
   const leverAngle = on ? 35 : -35;
-
+    
   return (
-    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+    <g
+      transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}
+    >
       {/* Legs down to the pin tips */}
-      <line x1={-1.5 * GRID} y1={bodyBottom} x2={-1.5 * GRID} y2={2 * GRID} stroke="#9ca3af" strokeWidth={2} />
-      <line x1={1.5 * GRID} y1={bodyBottom} x2={1.5 * GRID} y2={2 * GRID} stroke="#9ca3af" strokeWidth={2} />
+      <line
+        x1={-1.5 * GRID}
+        y1={bodyBottom}
+        x2={-1.5 * GRID}
+        y2={pinY}
+        stroke="#9ca3af"
+        strokeWidth={2}
+      />
+
+      <line
+        x1={1.5 * GRID}
+        y1={bodyBottom}
+        x2={1.5 * GRID}
+        y2={pinY}
+        stroke="#9ca3af"
+        strokeWidth={2}
+      />
 
       {/* Base housing */}
       <rect
@@ -46,9 +64,16 @@ export function ToggleSwitchPart({ part, selected, onToggle, pinStates, onPinCli
       />
 
       {/* Threaded bushing the lever sticks out of */}
-      <circle cx={pivotX} cy={pivotY} r={5} fill="#71717a" stroke="#27272a" strokeWidth={1} />
+      <circle
+        cx={pivotX}
+        cy={pivotY}
+        r={5}
+        fill="#71717a"
+        stroke="#27272a"
+        strokeWidth={1}
+      />
 
-      {/* Rocker lever — angle reflects on/off, click to flip persistent state */}
+      {/* Rocker lever */}
       <g
         style={{ cursor: onToggle ? "pointer" : "default" }}
         onClick={(e) => {
@@ -56,8 +81,14 @@ export function ToggleSwitchPart({ part, selected, onToggle, pinStates, onPinCli
           onToggle?.(part.id);
         }}
       >
-        {/* Wide invisible hit area, easier to click than the thin lever itself */}
-        <circle cx={pivotX} cy={pivotY} r={12} fill="transparent" />
+        {/* Wide invisible hit area */}
+        <circle
+          cx={pivotX}
+          cy={pivotY}
+          r={12}
+          fill="transparent"
+        />
+
         <line
           x1={pivotX}
           y1={pivotY}
@@ -68,22 +99,46 @@ export function ToggleSwitchPart({ part, selected, onToggle, pinStates, onPinCli
           strokeLinecap="round"
           transform={`rotate(${leverAngle} ${pivotX} ${pivotY})`}
         />
-        <circle cx={pivotX} cy={pivotY} r={3} fill="#e4e4e7" />
+
+        <circle
+          cx={pivotX}
+          cy={pivotY}
+          r={3}
+          fill="#e4e4e7"
+        />
       </g>
 
       {/* ON / OFF silkscreen */}
-      <text x={-9} y={bodyBottom - 3} fontSize={5} fontWeight={700} fill={on ? "#52525b" : "#22c55e"} textAnchor="middle" fontFamily="monospace">
+      <text
+        x={-9}
+        y={bodyBottom - 3}
+        fontSize={5}
+        fontWeight={700}
+        fill={on ? "#52525b" : "#22c55e"}
+        textAnchor="middle"
+        fontFamily="monospace"
+      >
         OFF
       </text>
-      <text x={9} y={bodyBottom - 3} fontSize={5} fontWeight={700} fill={on ? "#22c55e" : "#52525b"} textAnchor="middle" fontFamily="monospace">
+
+      <text
+        x={9}
+        y={bodyBottom - 3}
+        fontSize={5}
+        fontWeight={700}
+        fill={on ? "#22c55e" : "#52525b"}
+        textAnchor="middle"
+        fontFamily="monospace"
+      >
         ON
       </text>
 
+      {/* Pins */}
       {def.pins.map((pin) => (
         <PinDot
           key={pin.id}
           x={pin.x * GRID}
-          y={pin.y * GRID}
+          y={pinY}
           pinId={pin.id}
           label={`${pin.label} (${on ? "closed" : "open"})`}
           state={pinStates?.[pin.id]}

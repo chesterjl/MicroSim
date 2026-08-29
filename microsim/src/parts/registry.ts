@@ -10,7 +10,7 @@ import { LargeBreadboardPart } from "./LargeBreadboard";
 import { BatteryPart } from "./Battery";
 import { PotentiometerPart } from "./Potentiometer";
 import { HcSr04Part } from "./HcSr04";
-import { LcdPart } from "./Lcd";
+import { Lcd16x2I2CPart } from "./Lcd16x2I2C";
 import { CapacitorPart } from "./Capacitor";
 import { ActiveBuzzerPart } from "./ActiveBuzzer";
 import { PassiveBuzzerPart } from "./PassiveBuzzer";
@@ -22,6 +22,7 @@ import { KeypadPart } from "./Keypad";
 import { PhotoresistorPart } from "./Photoresistor";
 import { IrReceiverPart } from "./IrReceiver";
 import { IrRemotePart } from "./IrRemote";
+import { Lcd20x4I2CPart } from "./Lcd20x4I2C";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -43,7 +44,7 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   battery: BatteryPart,
   potentiometer: PotentiometerPart,
   "ultrasonic-hcsr04": HcSr04Part,
-  "lcd-16x2-i2c": LcdPart,
+  "lcd-16x2-i2c": Lcd16x2I2CPart,
   "arduino-uno": ArduinoUnoPart,
   capacitor: CapacitorPart,
   "active-buzzer": ActiveBuzzerPart,
@@ -56,5 +57,5 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   photoresistor: PhotoresistorPart,
   "ir-receiver": IrReceiverPart,
   "ir-remote": IrRemotePart,
-
+  "lcd-20x4-i2c": Lcd20x4I2CPart,
 };

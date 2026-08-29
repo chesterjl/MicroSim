@@ -4,17 +4,14 @@ import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { PinDot } from "./PinDot";
 
-export function IrReceiverPart({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface IrReceiverPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function IrReceiverPart({part, selected, pinStates, onPinClick}: IrReceiverPartProps) {
   const def = partDefinitions["ir-receiver"];
 
   const bodyHalfW = 2.2 * GRID;
@@ -59,19 +56,16 @@ export function IrReceiverPart({
         strokeWidth={1}
       />
 
-      <path d={`M ${bodyHalfW - 10} ${bodyTop + 2} q 4 -3 8 0`} fill="none" stroke="#52525b" strokeWidth={1} />
-
       {def.pins.map((pin) => (
         <text
           key={`label-${pin.id}`}
           x={pin.x * GRID}
-          y={bodyBottom + 12}
+          y={bodyBottom - 4}
           textAnchor="middle"
           fontSize={5}
           fontWeight={700}
           fill="#a1a1aa"
           fontFamily="monospace"
-          transform={`rotate(90 ${pin.x * GRID} ${bodyBottom + 12})`}
         >
           {pin.label}
         </text>
