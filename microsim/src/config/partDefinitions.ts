@@ -470,6 +470,18 @@ export const partDefinitions: Record<string, PartDefinition> = {
     defaultProperties: {},
   },
 
+  "dc-gearmotor": {
+    type: "dc-gearmotor",
+    displayName: "Hobby DC Gear Motor",
+    widthUnits: 12,
+    heightUnits: 24,
+    pins: [
+      { id: "negative", label: "Negative", x: -3.5, y: 4.5, type: "passive" }, // label fixed
+      { id: "positive", label: "Positive", x: -3.5, y: 6, type: "passive" },   // label fixed
+    ],
+    defaultProperties: {},
+  },
+
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

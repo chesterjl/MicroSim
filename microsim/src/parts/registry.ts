@@ -27,6 +27,7 @@ import { SevenSegmentPart } from "./SeventSegment";
 import { Dht11Part } from "./Dht11";
 import { Stepper28byj48Part } from "./Stepper28byj48";
 import { Uln2003DriverPart } from "./Uln2003Driver";
+import { DcGearMotorPart } from "./DcGearMotor";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -66,5 +67,6 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   dht11: Dht11Part,
   "stepper-28byj48": Stepper28byj48Part,
   "uln2003-driver": Uln2003DriverPart,
+  "dc-gearmotor": DcGearMotorPart,
 
 };

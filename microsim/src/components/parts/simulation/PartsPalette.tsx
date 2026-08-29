@@ -35,6 +35,8 @@ const ICONS = {
   dht11: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="2" width="14" height="22" rx="3" fill="%234b8bc4" stroke="%232f5f8f" stroke-width="1.5"/><rect x="11" y="6" width="10" height="9" rx="1" fill="%23eef4f8"/><text x="16" y="20" font-size="4.5" font-family="monospace" fill="%23ffffff" text-anchor="middle">DHT</text><line x1="12" y1="24" x2="12" y2="29" stroke="%23c7c7c7" stroke-width="1.5"/><line x1="16" y1="24" x2="16" y2="29" stroke="%23c7c7c7" stroke-width="1.5"/><line x1="20" y1="24" x2="20" y2="29" stroke="%23c7c7c7" stroke-width="1.5"/></svg>`,
   stepperMotor: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="17" cy="14" r="10" fill="%23d4d6d8" stroke="%238a8a8a" stroke-width="1.2"/><rect x="13" y="20" width="8" height="6" rx="2" fill="%232563eb"/><path d="M9 24 Q6 25 6 28" stroke="%233b82f6" stroke-width="1.5" fill="none"/><path d="M12 25 Q10 27 10 29" stroke="%23ec4899" stroke-width="1.5" fill="none"/><path d="M16 26 L16 30" stroke="%23eab308" stroke-width="1.5"/><path d="M20 25 Q22 27 22 29" stroke="%23f97316" stroke-width="1.5" fill="none"/><path d="M23 24 Q26 25 26 28" stroke="%23ef4444" stroke-width="1.5" fill="none"/></svg>`,
   uln2003: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="26" height="20" rx="2" fill="%231ca063" stroke="%23127a44" stroke-width="1.2"/><rect x="8" y="12" width="16" height="8" rx="1" fill="%231a1a1a"/><circle cx="10" cy="9" r="1.4" fill="%2322ff55"/><circle cx="14" cy="9" r="1.4" fill="%23164a2e"/><circle cx="18" cy="9" r="1.4" fill="%23164a2e"/><circle cx="22" cy="9" r="1.4" fill="%2322ff55"/></svg>`,
+  dcGearMotor: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="2" width="4" height="4" fill="%23f4d128"/><rect x="8" y="6" width="16" height="14" rx="2" fill="%23f4d128" stroke="%23c9a916" stroke-width="1"/><rect x="4" y="10" width="24" height="3" fill="%23f2f2f2" stroke="%23d4d4d8" stroke-width="0.5"/><rect x="9" y="19" width="14" height="6" rx="1" fill="%23e4e4e7" stroke="%23a1a1aa" stroke-width="1"/><rect x="11" y="24" width="10" height="4" fill="%2327272a"/><rect x="2" y="25" width="6" height="2" fill="%2318181b"/><rect x="2" y="28" width="6" height="2" fill="%23dc2626"/><rect x="15" y="28" width="2" height="3" fill="%23a1a1aa"/></svg>`,
+
 };
 
 const PART_CATALOG: PartOption[] = [
@@ -71,6 +73,7 @@ const PART_CATALOG: PartOption[] = [
 
   { type: "servo-mg90", label: "Servo MG90", category: "Motors", icon: ICONS.servoMG90},
   { type: "stepper-28byj48", label: "Stepper Motor (28BYJ-48)", category: "Motors", icon: ICONS.stepperMotor },
+  { type: "dc-gearmotor", label: "Hobby DC Gear Motor", category: "Motors", icon: ICONS.dcGearMotor },
   
   { type: "uln2003-driver", label: "ULN2003 Driver Board", category: "Actuators", icon: ICONS.uln2003 },
 ];
