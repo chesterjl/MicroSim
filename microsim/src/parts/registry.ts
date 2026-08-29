@@ -23,6 +23,7 @@ import { PhotoresistorPart } from "./Photoresistor";
 import { IrReceiverPart } from "./IrReceiver";
 import { IrRemotePart } from "./IrRemote";
 import { Lcd20x4I2CPart } from "./Lcd20x4I2C";
+import { SevenSegmentPart } from "./SeventSegment";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -58,4 +59,6 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "ir-receiver": IrReceiverPart,
   "ir-remote": IrRemotePart,
   "lcd-20x4-i2c": Lcd20x4I2CPart,
+  "seven-segment": SevenSegmentPart,
+
 };

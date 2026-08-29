@@ -64,8 +64,8 @@ export function Lcd16x2I2CPart({
         width={halfW * 2}
         height={halfH * 2}
         rx={4}
-        fill="#0e7a46"
-        stroke={selected ? "#4da3ff" : "#0a5c34"}
+        fill="#1a7a3c"
+        stroke={selected ? "#4da3ff" : "#0d3f1f"}
         strokeWidth={selected ? 2.5 : 1.5}
       />
 

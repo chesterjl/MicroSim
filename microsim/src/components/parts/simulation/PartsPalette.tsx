@@ -31,7 +31,7 @@ const ICONS = {
   irReceiver: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="10" y1="20" x2="10" y2="27" stroke="%23A1A1AA" stroke-width="2"/><line x1="16" y1="20" x2="16" y2="27" stroke="%23A1A1AA" stroke-width="2"/><line x1="22" y1="20" x2="22" y2="27" stroke="%23A1A1AA" stroke-width="2"/><rect x="6" y="6" width="20" height="16" rx="3" fill="%23141414"/><path d="M9 14Q16 6 23 14" fill="none" stroke="%233a3a3a" stroke-width="2"/></svg>`,
   irRemote: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="2" width="16" height="28" rx="6" fill="%23fafafa" stroke="%23d4d4d8" stroke-width="1.5"/><circle cx="13" cy="8" r="2.5" fill="%23dc2626"/><circle cx="19" cy="8" r="2.5" fill="%23ffffff" stroke="%233f3f46"/></svg>`,
   lcd20x4: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="28" height="22" rx="2" fill="%231ca063" stroke="%23127a44" stroke-width="1"/><rect x="5" y="8" width="22" height="16" fill="%231a1a1a"/><rect x="7" y="10" width="18" height="12" fill="%231d3f75"/></svg>`,
-
+  sevenSegment: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4" width="20" height="24" rx="2" fill="%23111111"/><polygon points="12,10 13,9 19,9 20,10 19,11 13,11" fill="%23ff8a1e"/><polygon points="20,10 21,11 21,15 20,16 19,15 19,11" fill="%23ff8a1e"/><polygon points="20,17 21,18 21,22 20,23 19,22 19,18" fill="%23ff8a1e"/><polygon points="12,24 13,23 19,23 20,24 19,25 13,25" fill="%232a1512"/><polygon points="11,17 12,18 12,22 11,23 10,22 10,18" fill="%232a1512"/><polygon points="11,10 12,11 12,15 11,16 10,15 10,11" fill="%232a1512"/><polygon points="12,17 13,16 19,16 20,17 19,18 13,18" fill="%232a1512"/></svg>`,  
 };
 
 const PART_CATALOG: PartOption[] = [
@@ -47,6 +47,7 @@ const PART_CATALOG: PartOption[] = [
   { type: "lcd-16x2-i2c", label: "LCD 16x2 (I2C)", category: "Display", icon: ICONS.lcd },
   { type: "lcd-20x4-i2c", label: "LCD 20x4 (I2C)", category: "Display", icon: ICONS.lcd20x4 },
   { type: "rgb-led", label: "RGB LED", category: "Display", icon: ICONS.rgbLed },
+  { type: "seven-segment", label: "7-Segment Display", category: "Display", icon: ICONS.sevenSegment },
   
   { type: "toggle-switch", label: "Toggle Switch", category: "Input", icon: ICONS.toggleSwitch },
   { type: "joystick", label: "Joystick", category: "Input", icon: ICONS.joystick },

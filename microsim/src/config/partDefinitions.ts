@@ -284,7 +284,7 @@ export const partDefinitions: Record<string, PartDefinition> = {
     ],
     defaultProperties: { address: 0x27,cols: 20,rows: 4,backlight: true },
   },
-  
+
   "rgb-led": {
     type: "rgb-led",
     displayName: "RGB LED",
@@ -378,6 +378,28 @@ export const partDefinitions: Record<string, PartDefinition> = {
     defaultProperties: { lastButton: null, lastCode: null, sentToken: 0 },
   },
 
+  "seven-segment": {
+    type: "seven-segment",
+    displayName: "7-Segment Display",
+    widthUnits: 7,
+    heightUnits: 9,
+    pins: [
+      // Top row, left to right
+      { id: "seg_g", label: "G", x: -2.4, y: -4, type: "digital" },
+      { id: "seg_f", label: "F", x: -1.2, y: -4, type: "digital" },
+      { id: "seg_a", label: "A", x: 0, y: -4, type: "digital" },
+      { id: "com2", label: "COM", x: 1.2, y: -4, type: "passive" },
+      { id: "seg_b", label: "B", x: 2.4, y: -4, type: "digital" },
+
+      // Bottom row, left to right
+      { id: "seg_e", label: "E", x: -2.4, y: 4, type: "digital" },
+      { id: "seg_d", label: "D", x: -1.2, y: 4, type: "digital" },
+      { id: "com1", label: "COM", x: 0, y: 4, type: "passive" },
+      { id: "seg_c", label: "C", x: 1.2, y: 4, type: "digital" },
+      { id: "seg_dp", label: "DP", x: 2.4, y: 4, type: "digital" },
+    ],
+    defaultProperties: { commonType: "cathode" },
+  },
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

@@ -43,7 +43,7 @@
       partId: string,
       channel: "red" | "green" | "blue"
     ) => number;
-
+    isSevenSegmentLit: (partId: string, segmentId: string) => boolean;
     isPowered: (partId: string) => boolean;
     isActiveBuzzerSounding: (partId: string) => boolean;
     getAnalogVoltage: (partId: string, pinId: string) => number;
@@ -69,6 +69,7 @@
         getPinState: () => "floating",
         getPartBrightness: () => 0,
         getRgbChannelBrightness: () => 0,
+        isSevenSegmentLit: () => false,
         isPowered: () => false,
         isActiveBuzzerSounding: () => false,
         getAnalogVoltage: () => 0,
@@ -98,6 +99,11 @@
       if (part.type === "photoresistor") {
         uf.union(pinKey(part.id, "pin1"), pinKey(part.id, "pin2"));
       }
+    }
+
+    for (const part of parts) {
+      if (part.type !== "seven-segment") continue;
+      uf.union(pinKey(part.id, "com1"), pinKey(part.id, "com2"));
     }
 
     for (const part of parts) {
@@ -400,6 +406,25 @@
       return calculateBrightness(totalOhms > 0 ? totalOhms : 220);
     }
 
+    function isSevenSegmentLitImpl(partId: string, segmentId: string): boolean {
+      const part = parts.find((p) => p.id === partId && p.type === "seven-segment");
+      if (!part) return false;
+
+      const commonType = (part.properties?.commonType as string) ?? "cathode";
+      const commonRoot = uf.find(pinKey(partId, "com1")); // com1/com2 already unioned to the same root
+      const segRoot = uf.find(pinKey(partId, segmentId));
+
+      const commonState = resolveNetState(commonRoot);
+      const segState = resolveNetState(segRoot);
+
+      if (commonType === "cathode") {
+        // COM tied to GND -- segment lights when its own pin is driven HIGH
+        return commonState === "low" && segState === "high";
+      }
+      // COM tied to 5V -- segment lights when its own pin is pulled LOW
+      return commonState === "high" && segState === "low";
+    }
+
     function photoresistorOhms(lightLevel: number): number {
       const darkOhms = 1_000_000; // pitch black — effectively open circuit
       const brightOhms = 100; // full light — near a dead short
@@ -488,6 +513,7 @@
       getPinState: (partId, pinId) => resolveNetState(uf.find(pinKey(partId, pinId))),
       getPartBrightness: (partId) => calculatePartBrightness(partId),
       getRgbChannelBrightness: (partId, channel) => calculateRgbChannelBrightness(partId, channel),
+      isSevenSegmentLit: (partId, segmentId) => isSevenSegmentLitImpl(partId, segmentId),
       isPowered: (partId) => isPartPowered(partId),
       isActiveBuzzerSounding: (partId) => isActiveBuzzerSoundingImpl(partId),
       getAnalogVoltage: (partId, pinId) => resolveNetVoltage(uf.find(pinKey(partId, pinId))),

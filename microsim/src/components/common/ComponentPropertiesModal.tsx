@@ -5,6 +5,7 @@ import { LedModal } from "../parts/led/LedModal";
 import { PotentiometerModal } from "../parts/potentiometer/PotentiometerModal";
 import { PhotoresistorModal } from "../parts/resistor/PhotoresistorModal";
 import { ResistorModal } from "../parts/resistor/ResistorModal";
+import { SevenSegmentModal } from "../parts/segment/SevenSegmentModal";
 import { UltrasonicHcsr04Modal } from "../parts/sensor/UltrasonicHcsr04Modal";
 
 interface Props {
@@ -30,6 +31,8 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
       return <UltrasonicHcsr04Modal part={part} onClose={onClose} />;
     case "photoresistor":
       return <PhotoresistorModal part={part} onClose={onClose} />;
+    case "seven-segment":
+      return <SevenSegmentModal part={part} onClose={onClose} />;
     default:
       return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
