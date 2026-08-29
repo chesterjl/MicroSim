@@ -4,7 +4,7 @@ import { useCircuitStore } from "../../../store/circuitStore";
 interface PartOption {
   type: string;
   label: string;
-  category: "Basic" | "Display" | "Microcontrollers" | "Breadboards" | "Sensor" | "Motors" | "Input";
+  category: "Basic" | "Display" | "Microcontrollers" | "Breadboards" | "Sensor" | "Motors" | "Input" | "Actuators";
   icon: string;
 }
 
@@ -32,6 +32,9 @@ const ICONS = {
   irRemote: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="2" width="16" height="28" rx="6" fill="%23fafafa" stroke="%23d4d4d8" stroke-width="1.5"/><circle cx="13" cy="8" r="2.5" fill="%23dc2626"/><circle cx="19" cy="8" r="2.5" fill="%23ffffff" stroke="%233f3f46"/></svg>`,
   lcd20x4: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="5" width="28" height="22" rx="2" fill="%231ca063" stroke="%23127a44" stroke-width="1"/><rect x="5" y="8" width="22" height="16" fill="%231a1a1a"/><rect x="7" y="10" width="18" height="12" fill="%231d3f75"/></svg>`,
   sevenSegment: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4" width="20" height="24" rx="2" fill="%23111111"/><polygon points="12,10 13,9 19,9 20,10 19,11 13,11" fill="%23ff8a1e"/><polygon points="20,10 21,11 21,15 20,16 19,15 19,11" fill="%23ff8a1e"/><polygon points="20,17 21,18 21,22 20,23 19,22 19,18" fill="%23ff8a1e"/><polygon points="12,24 13,23 19,23 20,24 19,25 13,25" fill="%232a1512"/><polygon points="11,17 12,18 12,22 11,23 10,22 10,18" fill="%232a1512"/><polygon points="11,10 12,11 12,15 11,16 10,15 10,11" fill="%232a1512"/><polygon points="12,17 13,16 19,16 20,17 19,18 13,18" fill="%232a1512"/></svg>`,  
+  dht11: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="2" width="14" height="22" rx="3" fill="%234b8bc4" stroke="%232f5f8f" stroke-width="1.5"/><rect x="11" y="6" width="10" height="9" rx="1" fill="%23eef4f8"/><text x="16" y="20" font-size="4.5" font-family="monospace" fill="%23ffffff" text-anchor="middle">DHT</text><line x1="12" y1="24" x2="12" y2="29" stroke="%23c7c7c7" stroke-width="1.5"/><line x1="16" y1="24" x2="16" y2="29" stroke="%23c7c7c7" stroke-width="1.5"/><line x1="20" y1="24" x2="20" y2="29" stroke="%23c7c7c7" stroke-width="1.5"/></svg>`,
+  stepperMotor: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="17" cy="14" r="10" fill="%23d4d6d8" stroke="%238a8a8a" stroke-width="1.2"/><rect x="13" y="20" width="8" height="6" rx="2" fill="%232563eb"/><path d="M9 24 Q6 25 6 28" stroke="%233b82f6" stroke-width="1.5" fill="none"/><path d="M12 25 Q10 27 10 29" stroke="%23ec4899" stroke-width="1.5" fill="none"/><path d="M16 26 L16 30" stroke="%23eab308" stroke-width="1.5"/><path d="M20 25 Q22 27 22 29" stroke="%23f97316" stroke-width="1.5" fill="none"/><path d="M23 24 Q26 25 26 28" stroke="%23ef4444" stroke-width="1.5" fill="none"/></svg>`,
+  uln2003: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="26" height="20" rx="2" fill="%231ca063" stroke="%23127a44" stroke-width="1.2"/><rect x="8" y="12" width="16" height="8" rx="1" fill="%231a1a1a"/><circle cx="10" cy="9" r="1.4" fill="%2322ff55"/><circle cx="14" cy="9" r="1.4" fill="%23164a2e"/><circle cx="18" cy="9" r="1.4" fill="%23164a2e"/><circle cx="22" cy="9" r="1.4" fill="%2322ff55"/></svg>`,
 };
 
 const PART_CATALOG: PartOption[] = [
@@ -57,6 +60,7 @@ const PART_CATALOG: PartOption[] = [
   { type: "photoresistor", label: "Photoresistor", category: "Sensor", icon: ICONS.photoresistor },
   { type: "ir-receiver", label: "IR Receiver", category: "Sensor", icon: ICONS.irReceiver },
   { type: "ir-remote", label: "IR Remote Control", category: "Sensor", icon: ICONS.irRemote },
+  { type: "dht11", label: "DHT11", category: "Sensor", icon: ICONS.dht11 },
 
   { type: "breadboard-mini", label: "Small Breadboard", category: "Breadboards", icon: ICONS.breadboard },
   { type: "breadboard-half", label: "Medium Breadboard", category: "Breadboards", icon: ICONS.breadboard },
@@ -66,6 +70,9 @@ const PART_CATALOG: PartOption[] = [
   { type: "esp32", label: "ESP32", category: "Microcontrollers", icon: ICONS.esp32 },
 
   { type: "servo-mg90", label: "Servo MG90", category: "Motors", icon: ICONS.servoMG90},
+  { type: "stepper-28byj48", label: "Stepper Motor (28BYJ-48)", category: "Motors", icon: ICONS.stepperMotor },
+  
+  { type: "uln2003-driver", label: "ULN2003 Driver Board", category: "Actuators", icon: ICONS.uln2003 },
 ];
 
 export function PartsPalette() {

@@ -5,6 +5,9 @@ const ARDUINO_HEIGHT = 22;
 
 export const DEFAULT_ULTRASONIC_DISTANCE_CM = 50;
 
+export const DEFAULT_DHT11_TEMPERATURE_C = 25;
+export const DEFAULT_DHT11_HUMIDITY_PERCENT = 50;
+
 function evenlySpaced(count: number, span: number, start: number): number[] {
   const step = span / count;
   return Array.from({ length: count }, (_, i) => start + step * (i + 0.5));
@@ -400,6 +403,73 @@ export const partDefinitions: Record<string, PartDefinition> = {
     ],
     defaultProperties: { commonType: "cathode" },
   },
+
+  dht11: {
+    type: "dht11",
+    displayName: "Temperature & Humidity Sensor (DHT11)",
+    widthUnits: 8,
+    heightUnits: 13,
+    pins: [
+      // Bottom edge, left to right — matches the real module's 3-pin header
+      // (VCC / DATA / GND). Whole grid-unit x/y only, same rule learned
+      // from the ultrasonic sensor, so these can land on breadboard holes.
+      { id: "vcc", label: "VCC", x: -2, y: 6, type: "passive" },
+      { id: "data", label: "DATA", x: 0, y: 6, type: "digital" },
+      { id: "gnd", label: "GND", x: 2, y: 6, type: "passive" },
+    ],
+    defaultProperties: {
+      temperatureC: DEFAULT_DHT11_TEMPERATURE_C,
+      humidityPercent: DEFAULT_DHT11_HUMIDITY_PERCENT,
+    },
+  },
+
+  "stepper-28byj48": {
+    type: "stepper-28byj48",
+    displayName: "Stepper Motor (28BYJ-48)",
+    widthUnits: 20,
+    heightUnits: 20,
+    pins: [
+      { id: "coilA", label: "Blue", x: -7, y: 12, type: "passive" },
+      { id: "coilB", label: "Pink", x: -3.5, y: 12, type: "passive" },
+      { id: "coilC", label: "Yellow", x: 0, y: 12, type: "passive" },
+      { id: "coilD", label: "Orange", x: 3.5, y: 12, type: "passive" },
+      { id: "com", label: "Red", x: 7, y: 12, type: "power" },
+    ],
+    defaultProperties: { rotorAngleDeg: 0 }, // CHANGED — was {}
+  },
+
+  "uln2003-driver": {
+    type: "uln2003-driver",
+    displayName: "ULN2003 Stepper Driver Board",
+    widthUnits: 22,
+    heightUnits: 16,
+    pins: [
+      // Bottom edge -- IN1..IN7, matches the board's silkscreen exactly.
+      // Only IN1-IN4 are electrically meaningful (wired to outA-D below);
+      // IN5-IN7 exist on the real board's silkscreen but aren't connected
+      // to anything internally.
+      { id: "in1", label: "IN1", x: -9, y: 8, type: "digital" },
+      { id: "in2", label: "IN2", x: -6, y: 8, type: "digital" },
+      { id: "in3", label: "IN3", x: -3, y: 8, type: "digital" },
+      { id: "in4", label: "IN4", x: 0, y: 8, type: "digital" },
+      { id: "in5", label: "IN5", x: 3, y: 8, type: "digital" },
+      { id: "in6", label: "IN6", x: 6, y: 8, type: "digital" },
+      { id: "in7", label: "IN7", x: 9, y: 8, type: "digital" },
+
+      // Right edge -- board power input
+      { id: "gnd", label: "GND", x: 10, y: 2, type: "ground" },
+      { id: "vcc", label: "+5V", x: 10, y: -1.5, type: "power" },
+      
+      // Top edge -- 5-pin motor connector, mirrors the stepper's 5 wires
+      { id: "outA", label: "Blue", x: -7, y: -8, type: "passive" },
+      { id: "outB", label: "Pink", x: -3.5, y: -8, type: "passive" },
+      { id: "outC", label: "Yellow", x: 0, y: -8, type: "passive" },
+      { id: "outD", label: "Orange", x: 3.5, y: -8, type: "passive" },
+      { id: "outCOM", label: "Red", x: 7, y: -8, type: "power" },
+    ],
+    defaultProperties: {},
+  },
+
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

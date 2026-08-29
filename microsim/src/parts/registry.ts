@@ -24,6 +24,9 @@ import { IrReceiverPart } from "./IrReceiver";
 import { IrRemotePart } from "./IrRemote";
 import { Lcd20x4I2CPart } from "./Lcd20x4I2C";
 import { SevenSegmentPart } from "./SeventSegment";
+import { Dht11Part } from "./Dht11";
+import { Stepper28byj48Part } from "./Stepper28byj48";
+import { Uln2003DriverPart } from "./Uln2003Driver";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -60,5 +63,8 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "ir-remote": IrRemotePart,
   "lcd-20x4-i2c": Lcd20x4I2CPart,
   "seven-segment": SevenSegmentPart,
+  dht11: Dht11Part,
+  "stepper-28byj48": Stepper28byj48Part,
+  "uln2003-driver": Uln2003DriverPart,
 
 };

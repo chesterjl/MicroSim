@@ -138,7 +138,7 @@ export function KeypadPart({ part, selected, pinStates, onPinClick}: KeypadPartP
         <text
           key={`label-${pin.id}`}
           x={pin.x * GRID}
-          y={pin.y * GRID + 14}
+          y={pin.y * GRID - 30  }
           textAnchor="middle"
           fontSize={6}
           fontWeight={700}

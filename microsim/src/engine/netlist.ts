@@ -48,6 +48,8 @@
     isActiveBuzzerSounding: (partId: string) => boolean;
     getAnalogVoltage: (partId: string, pinId: string) => number;
     getConnectedArduinoPin: (partId: string, pinId: string) => number | null;
+    arePinsConnected: (partIdA: string, pinIdA: string, partIdB: string, pinIdB: string) => boolean; // NEW
+
   }
 
   function calculateBrightness(totalOhms: number): number {
@@ -74,6 +76,7 @@
         isActiveBuzzerSounding: () => false,
         getAnalogVoltage: () => 0,
         getConnectedArduinoPin: () => null,
+        arePinsConnected: () => false, 
       };
     }
     
@@ -114,6 +117,15 @@
       } else {
         uf.union(pinKey(part.id, "wiper"), pinKey(part.id, "pin1"));
       }
+    }
+
+    for (const part of parts) {
+      if (part.type !== "uln2003-driver") continue;
+      uf.union(pinKey(part.id, "in1"), pinKey(part.id, "outA"));
+      uf.union(pinKey(part.id, "in2"), pinKey(part.id, "outB"));
+      uf.union(pinKey(part.id, "in3"), pinKey(part.id, "outC"));
+      uf.union(pinKey(part.id, "in4"), pinKey(part.id, "outD"));
+      uf.union(pinKey(part.id, "vcc"), pinKey(part.id, "outCOM"));
     }
 
     for (const part of parts) {
@@ -518,5 +530,6 @@
       isActiveBuzzerSounding: (partId) => isActiveBuzzerSoundingImpl(partId),
       getAnalogVoltage: (partId, pinId) => resolveNetVoltage(uf.find(pinKey(partId, pinId))),
       getConnectedArduinoPin: (partId, pinId) => getConnectedArduinoPinImpl(partId, pinId),
+      arePinsConnected: (partIdA, pinIdA, partIdB, pinIdB) => uf.find(pinKey(partIdA, pinIdA)) === uf.find(pinKey(partIdB, pinIdB)),
     };
   }

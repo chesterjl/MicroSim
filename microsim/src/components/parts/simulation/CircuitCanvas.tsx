@@ -10,7 +10,7 @@ import { GRID, type PartInstance, type PinRef } from "../../../types/types";
 const WORLD_WIDTH = 7000;
 const WORLD_HEIGHT = 7000;
 
-const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment"];
+const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11"];
 
 const SNAP_DISTANCE = 16;
 

@@ -173,6 +173,62 @@ function createUltrasonicDevice(
   };
 }
 
+function createStepperDevice(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  stepperId: string,
+  inPins: [number, number, number, number]
+): ExternalDevice {
+  const inputs = inPins.map((pin) => getPortAndBit(pin, portB, portD));
+  const DEGREES_PER_STEP = 360 / 512;
+
+  let lastActiveIndex: number | null = null;
+
+  function readActiveIndex(): number | null {
+    for (let i = 0; i < inputs.length; i++) {
+      const { port, bit } = inputs[i];
+      if (port.pinState(bit) === PinState.High) return i;
+    }
+    return null;
+  }
+
+  function onPinChange() {
+    const active = readActiveIndex();
+
+    if (active === null || active === lastActiveIndex) {
+      lastActiveIndex = active;
+      return;
+    }
+
+    if (lastActiveIndex !== null) {
+      // Shortest circular distance between the previous and newly active
+      // coil (0..3) tells us which way the field is rotating.
+      const forwardDist = (active - lastActiveIndex + 4) % 4;
+      const direction = forwardDist === 1 ? 1 : forwardDist === 3 ? -1 : 0;
+
+      if (direction !== 0) {
+        const state = useCircuitStore.getState();
+        const stepperPart = state.parts.find((p) => p.id === stepperId);
+        const currentAngle = Number(stepperPart?.properties?.rotorAngleDeg ?? 0);
+        const nextAngle = (currentAngle + direction * DEGREES_PER_STEP + 360) % 360;
+        state.updatePartProperties(stepperId, { rotorAngleDeg: nextAngle });
+      }
+    }
+
+    lastActiveIndex = active;
+  }
+
+  for (const { port, bit } of inputs) {
+    port.addListener(() => onPinChange());
+    void bit; // listener fires on any port change; we re-read all 4 pins ourselves each time
+  }
+
+  return {
+    claimedPins: [...inPins],
+    update: () => {}, // all work happens in the port listeners above, not per-instruction
+  };
+}
+
 /**
  * Passive buzzer -- no internal oscillator, so it only makes sound if the
  * connected pin is actively toggling (e.g. via tone()). Measures the
@@ -258,6 +314,20 @@ function setupExternalDevices(
 
       const powered = wiringNetlist.isPowered(part.id);
       devices.push(createUltrasonicDevice(portB, portD, part.id, trigPin, echoPin, powered));
+    }
+
+    if (part.type === "uln2003-driver") {                                   
+      const in1 = wiringNetlist.getConnectedArduinoPin(part.id, "in1");
+      const in2 = wiringNetlist.getConnectedArduinoPin(part.id, "in2");
+      const in3 = wiringNetlist.getConnectedArduinoPin(part.id, "in3");
+      const in4 = wiringNetlist.getConnectedArduinoPin(part.id, "in4");
+      if (in1 === null || in2 === null || in3 === null || in4 === null) continue;
+
+      const stepperPart = parts.find((p) => p.type === "stepper-28byj48" &&
+              wiringNetlist.arePinsConnected(part.id, "outA", p.id, "coilA"));
+
+      if (!stepperPart) continue;
+      devices.push(createStepperDevice(portB, portD, stepperPart.id, [in1, in2, in3, in4]));
     }
   }
 
@@ -660,7 +730,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
             console.log("[I2C] ACK:", ack);
             twi.completeConnect(ack);
           },
-          
+
           writeByte: (value: number) => {
             console.log("[I2C] writeByte", value.toString(16));
             const ack = bus.writeByte(value);

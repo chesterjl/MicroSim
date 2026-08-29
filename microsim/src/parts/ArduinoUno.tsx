@@ -55,7 +55,7 @@ export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinCl
         width={halfW * 2}
         height={halfH * 2}
         rx={9}
-        fill="#00959f"
+        fill="#377bc4"
         stroke={selected ? "#4da3ff" : "#006670"}
         strokeWidth={selected ? 3 : 2}
       />
@@ -70,20 +70,6 @@ export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinCl
         strokeOpacity={0.2}
         strokeWidth={1}
       />
-
-      {/* Mounting holes */}
-      {[
-        { x: -halfW + 18, y: -halfH + 18 },
-        { x: halfW - 18, y: -halfH + 18 },
-        { x: -halfW + 18, y: halfH - 18 },
-        { x: halfW - 28, y: halfH - 18 },
-      ].map((hole, i) => (
-        <g key={i} transform={`translate(${hole.x}, ${hole.y})`}>
-          <circle r={6} fill="#d97706" />
-          <circle r={4.6} fill="#e5e7eb" />
-          <circle r={3.2} fill="#111827" />
-        </g>
-      ))}
 
       {/* ATmega328P DIP chip */}
       <g transform="translate(-10, 10)">
@@ -102,22 +88,22 @@ export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinCl
       {/* Crystal oscillator */}
       <g transform={`translate(${-halfW + 58}, -8)`}>
         <rect x={-7} y={-13} width={14} height={26} rx={6} fill="#d1d5db" stroke="#8a8a8a" strokeWidth={0.8} />
-        <text x={0} y={2.5} textAnchor="middle" fontSize={5.5} fill="#4b5563">
+        <text x={0} y={2.5} textAnchor="middle" fontSize={5.5} fill="#4b5563"  transform={`rotate(90)`}>
           16MHz
         </text>
       </g>
 
       {/* Reset button */}
-      <g transform={`translate(${-halfW + 24}, ${-halfH + 34})`}>
+      <g transform={`translate(${-halfW + 24}, ${-halfH + 50})`}>
         <rect x={-9} y={-9} width={18} height={18} rx={1} fill="#d1d5db" stroke="#8a8a8a" />
         <circle r={5} fill="#ef4444" />
       </g>
-      <text x={-halfW + 46} y={-halfH + 36} fontSize={7} fontWeight={700} fill="#ffffff" fontFamily="monospace">
+      <text x={-halfW + 15} y={-halfH + 68} fontSize={7} fontWeight={700} fill="#ffffff" fontFamily="monospace">
         RESET
-      </text>
+      </text> 
 
       {/* Status LEDs -- ON lights green only while the sim is running */}
-      <g transform={`translate(${halfW - 56}, ${-halfH + 30})`}>
+      <g transform={`translate(${halfW - 56}, ${-halfH + 45})`}>
         <circle cx={-12} cy={0} r={2.6} fill={isSimulating ? "#22c55e" : "#1f4d33"} />
         <text x={-12} y={9} textAnchor="middle" fontSize={5.5} fill="#fff">
           ON
@@ -137,18 +123,18 @@ export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinCl
       </g>
 
       {/* Branding */}
-      <text x={14} y={-halfH + 42} textAnchor="middle" fontSize={19} fontWeight={900} fill="#ffffff" fontFamily="system-ui, sans-serif">
+      <text x={0} y={-halfH + 45} textAnchor="middle" fontSize={19} fontWeight={900} fill="#ffffff" fontFamily="system-ui, sans-serif">
         ARDUINO
       </text>
-      <text x={14} y={-halfH + 56} textAnchor="middle" fontSize={11} fontWeight={700} fill="#c9f7fb" fontFamily="system-ui, sans-serif" letterSpacing={3}>
+      <text x={0} y={-halfH + 59} textAnchor="middle" fontSize={11} fontWeight={700} fill="#c9f7fb" fontFamily="system-ui, sans-serif" letterSpacing={3}>
         UNO
       </text>
 
       {/* Header section labels */}
-      <text x={halfW - 118} y={-halfH + 15} fontSize={7.5} fontWeight={700} fill="#ffffff" fontFamily="sans-serif">
+      <text x={halfW - 88} y={-halfH + 35} fontSize={7.5} fontWeight={700} fill="#ffffff" fontFamily="sans-serif">
         DIGITAL (PWM ~)
       </text>
-      <text x={halfW - 100} y={halfH - 15} fontSize={7.5} fontWeight={700} fill="#ffffff" fontFamily="sans-serif">
+      <text x={halfW - 100} y={halfH - 25} fontSize={7.5} fontWeight={700} fill="#ffffff" fontFamily="sans-serif">
         ANALOG IN
       </text>
 
