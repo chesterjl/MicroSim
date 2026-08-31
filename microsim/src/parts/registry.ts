@@ -11,7 +11,6 @@ import { BatteryPart } from "./Battery";
 import { PotentiometerPart } from "./Potentiometer";
 import { HcSr04Part } from "./HcSr04";
 import { Lcd16x2I2CPart } from "./Lcd16x2I2C";
-import { CapacitorPart } from "./Capacitor";
 import { ActiveBuzzerPart } from "./ActiveBuzzer";
 import { PassiveBuzzerPart } from "./PassiveBuzzer";
 import { ServoMG90Part } from "./ServoMG90";
@@ -28,6 +27,10 @@ import { Dht11Part } from "./Dht11";
 import { Stepper28byj48Part } from "./Stepper28byj48";
 import { Uln2003DriverPart } from "./Uln2003Driver";
 import { DcGearMotorPart } from "./DcGearMotor";
+import { RelayPart } from "./Relay";
+import { Dht22Part } from "./Dht22";
+import { CapacitorPolarizedPart } from "./CapacitorPolarized";
+import { CapacitorNonPolarizedPart } from "./CapacitorNonPolarized";
 
 export interface PartComponentProps {
   part: PartInstance;
@@ -51,7 +54,6 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "ultrasonic-hcsr04": HcSr04Part,
   "lcd-16x2-i2c": Lcd16x2I2CPart,
   "arduino-uno": ArduinoUnoPart,
-  capacitor: CapacitorPart,
   "active-buzzer": ActiveBuzzerPart,
   "passive-buzzer": PassiveBuzzerPart,
   "servo-mg90": ServoMG90Part,
@@ -68,5 +70,8 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "stepper-28byj48": Stepper28byj48Part,
   "uln2003-driver": Uln2003DriverPart,
   "dc-gearmotor": DcGearMotorPart,
-
+  relay: RelayPart,
+  dht22: Dht22Part,
+  "capacitor-polarized": CapacitorPolarizedPart,
+  "capacitor-nonpolarized": CapacitorNonPolarizedPart,
 };

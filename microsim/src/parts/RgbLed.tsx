@@ -2,9 +2,10 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLeg } from "./PinLeg";
 
-const COLOR_PALETTE: Record<string, {off: string; on: string; glow: string }> = {
+const COLOR_PALETTE: Record<string, { off: string; on: string; glow: string }> = {
   red: { off: "#700000", on: "#ff2222", glow: "#ff4444" },
   green: { off: "#005500", on: "#22ff22", glow: "#44ff44" },
   blue: { off: "#001170", on: "#2266ff", glow: "#4488ff" },
@@ -24,7 +25,7 @@ interface RGBLedPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGBLedPartProps) {
+export function RgbLedPart({ part, selected, pinStates, netlist, onPinClick }: RGBLedPartProps) {
   const def = partDefinitions["rgb-led"];
 
   const redState = pinStates?.red;
@@ -48,66 +49,19 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
 
   const isLit = redBrightness > 0 || greenBrightness > 0 || blueBrightness > 0;
 
+  // Center offset to align the bulb body over pin span [-1 to 2] (center at 0.5)
+  const centerOffsetX = 0.5 * GRID;
   const domeRadius = 1.8 * GRID;
   const bodyWidth = domeRadius * 2;
   const bodyHeight = domeRadius;
 
   const domePathD = `
-    M ${-bodyWidth / 2} 0
-    L ${-bodyWidth / 2} ${-bodyHeight}
-    A ${bodyWidth / 2} ${bodyHeight} 0 1 1 ${bodyWidth / 2} ${-bodyHeight}
-    L ${bodyWidth / 2} 0
+    M ${centerOffsetX - bodyWidth / 2} 0
+    L ${centerOffsetX - bodyWidth / 2} ${-bodyHeight}
+    A ${bodyWidth / 2} ${bodyHeight} 0 1 1 ${centerOffsetX + bodyWidth / 2} ${-bodyHeight}
+    L ${centerOffsetX + bodyWidth / 2} 0
     Z
   `;
-
-  const legHeight = 1.8 * GRID;
-
-  const pinPositions: Record<string, number> = {
-    red: -1.5,
-    green: -0.5,
-    blue: 0.5,
-    gnd: 1.5,
-  };
-
-  function renderPin(pinId: string) {
-    const pin = def?.pins.find((p) => p.id === pinId);
-    if (!pin) return null;
-
-    const pinX = pinPositions[pinId] * GRID;
-
-    if (pinId === "red") {
-      const midY = legHeight * 0.45;
-      return (
-        <path
-          key={`leg-${pinId}`}
-          d={`
-            M ${pinX} 0
-            L ${pinX - 3} ${midY}
-            L ${pinX} ${midY + 3}
-            L ${pinX} ${legHeight}
-          `}
-          fill="none"
-          stroke="#cccccc"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      );
-    }
-
-    return (
-      <line
-        key={`leg-${pinId}`}
-        x1={pinX}
-        y1={0}
-        x2={pinX}
-        y2={legHeight}
-        stroke="#b3b3b3"
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-    );
-  }
 
   const channelOpacity = {
     red: Math.min(1, redBrightness),
@@ -117,11 +71,6 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-      {renderPin("red")}
-      {renderPin("green")}
-      {renderPin("blue")}
-      {renderPin("gnd")}
-
       {isLit && (
         <>
           {redBrightness > 0 && (
@@ -162,6 +111,7 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
         </>
       )}
 
+      {/* Main Glass Dome Body */}
       <path
         d={domePathD}
         fill="#151515"
@@ -169,8 +119,9 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
         strokeWidth={selected ? 2.5 : 1}
       />
 
+      {/* Internal Substrate Plate */}
       <ellipse
-        cx={0}
+        cx={centerOffsetX}
         cy={-0.65 * GRID}
         rx={0.95 * GRID}
         ry={0.48 * GRID}
@@ -181,9 +132,10 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
         className="pointer-events-none"
       />
 
+      {/* Active Light Emitting Elements */}
       {redBrightness > 0 && (
         <ellipse
-          cx={-0.62 * GRID}
+          cx={centerOffsetX - 0.62 * GRID}
           cy={-0.7 * GRID}
           rx={0.48 * GRID}
           ry={0.36 * GRID}
@@ -198,7 +150,7 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
 
       {greenBrightness > 0 && (
         <ellipse
-          cx={0}
+          cx={centerOffsetX}
           cy={-0.7 * GRID}
           rx={0.48 * GRID}
           ry={0.36 * GRID}
@@ -213,7 +165,7 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
 
       {blueBrightness > 0 && (
         <ellipse
-          cx={0.62 * GRID}
+          cx={centerOffsetX + 0.62 * GRID}
           cy={-0.7 * GRID}
           rx={0.48 * GRID}
           ry={0.36 * GRID}
@@ -242,12 +194,13 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
         />
       )}
 
+      {/* Glass Highlight Line */}
       <path
         d={`
-          M ${-1.05 * GRID} ${-1.25 * GRID}
+          M ${centerOffsetX - 1.05 * GRID} ${-1.25 * GRID}
           A ${1.05 * GRID} ${1.05 * GRID}
           0 0 1
-          ${0} ${-1.75 * GRID}
+          ${centerOffsetX} ${-1.75 * GRID}
         `}
         fill="none"
         stroke="#ffffff"
@@ -256,8 +209,9 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
         className="pointer-events-none"
       />
 
+      {/* Internal LED Dies */}
       <circle
-        cx={-0.62 * GRID}
+        cx={centerOffsetX - 0.62 * GRID}
         cy={-0.7 * GRID}
         r={0.11 * GRID}
         fill={redBrightness > 0 ? "#ff6666" : "#3b1111"}
@@ -266,7 +220,7 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
       />
 
       <circle
-        cx={0}
+        cx={centerOffsetX}
         cy={-0.7 * GRID}
         r={0.11 * GRID}
         fill={greenBrightness > 0 ? "#66ff66" : "#113b11"}
@@ -275,7 +229,7 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
       />
 
       <circle
-        cx={0.62 * GRID}
+        cx={centerOffsetX + 0.62 * GRID}
         cy={-0.7 * GRID}
         r={0.11 * GRID}
         fill={blueBrightness > 0 ? "#6688ff" : "#11183b"}
@@ -283,21 +237,20 @@ export function RgbLedPart({part, selected, pinStates, netlist, onPinClick}: RGB
         className="pointer-events-none"
       />
 
-      {def?.pins.map((pin) => {
-        const pinX = pinPositions[pin.id] * GRID;
-
-        return (
-          <PinDot
-            key={pin.id}
-            x={pinX}
-            y={legHeight}
+      {/* Pin Dots defined strictly by partDefinitions.ts */}
+      {def?.pins.map((pin) => (
+        <g key={pin.id}>
+          <PinLeg x1={pin.x * GRID} y1={0} x2={pin.x * GRID} y2={pin.y * GRID}/>
+          <Pin
+            x={pin.x * GRID}
+            y={pin.y * GRID}
             pinId={pin.id}
             label={pin.label}
             state={pinStates?.[pin.id]}
             onClick={(e) => onPinClick?.(pin.id, e)}
           />
-        );
-      })}
+        </g>
+      ))}
     </g>
   );
 }

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { nanoid } from "nanoid";
 import {CPU,avrInstruction,portBConfig,portDConfig,AVRUSART,AVRIOPort,AVRTimer,timer0Config,timer1Config,timer2Config,AVRADC,adcConfig,usart0Config,AVRTWI,twiConfig,PinState,} from "avr8js";
 import type { PartInstance, PinRef, Wire } from "../types/types";
-import { createPartInstance } from "../config/partDefinitions";
+import { createPartInstance, getCapacitanceFarads } from "../config/partDefinitions";
 import { buildNetlist } from "../engine/netlist";
 import type { Netlist } from "../engine/netlist";
 import { DEFAULT_SKETCH } from "../constants/constant";
@@ -201,8 +201,6 @@ function createStepperDevice(
     }
 
     if (lastActiveIndex !== null) {
-      // Shortest circular distance between the previous and newly active
-      // coil (0..3) tells us which way the field is rotating.
       const forwardDist = (active - lastActiveIndex + 4) % 4;
       const direction = forwardDist === 1 ? 1 : forwardDist === 3 ? -1 : 0;
 
@@ -220,24 +218,15 @@ function createStepperDevice(
 
   for (const { port, bit } of inputs) {
     port.addListener(() => onPinChange());
-    void bit; // listener fires on any port change; we re-read all 4 pins ourselves each time
+    void bit;
   }
 
   return {
     claimedPins: [...inPins],
-    update: () => {}, // all work happens in the port listeners above, not per-instruction
+    update: () => {},
   };
 }
 
-/**
- * Passive buzzer -- no internal oscillator, so it only makes sound if the
- * connected pin is actively toggling (e.g. via tone()). Measures the
- * cycle count between consecutive edges (any direction) on the port's
- * own change listener -- the same cycle-accurate technique already used
- * for the ultrasonic sensor's trigger detection -- and derives frequency
- * from that, since sampling digitalPins once per ~16ms animation frame
- * is far too coarse to see an audio-rate square wave at all.
- */
 function createPassiveBuzzerDevice(
   portB: AVRIOPort,
   portD: AVRIOPort,
@@ -253,9 +242,7 @@ function createPassiveBuzzerDevice(
   let currentFrequency = 0;
   let lastActivityCycle = 0;
 
-  // If nothing toggles for this long, treat the buzzer as silent -- covers
-  // noTone() and the end of a timed tone(pin, freq, duration) call.
-  const SILENCE_TIMEOUT_CYCLES = Math.round(16_000_000 * 0.05); // 50ms
+  const SILENCE_TIMEOUT_CYCLES = Math.round(16_000_000 * 0.05);
 
   port.addListener(() => {
     const level = port.pinState(bit) === PinState.High;
@@ -272,8 +259,6 @@ function createPassiveBuzzerDevice(
           const halfPeriodCycles = cpu.cycles - lastEdgeCycle;
           if (halfPeriodCycles > 0) {
             const freq = 16_000_000 / (2 * halfPeriodCycles);
-            // Ignore absurd values (startup glitches, one-off DDR flips)
-            // and skip redundant updates to avoid spamming the store.
             if (freq >= 20 && freq <= 20000) {
               const rounded = Math.round(freq);
               if (rounded !== currentFrequency) {
@@ -291,6 +276,57 @@ function createPassiveBuzzerDevice(
       }
     },
   };
+}
+
+/**
+ * Computes the capacitor's next stored voltage for one animation frame,
+ * using a standard RC exponential charge/discharge model:
+ *
+ *   charging:    V(t) = Vtarget + (V0 - Vtarget) * e^(-t / RC)
+ *   discharging: V(t) = V0 * e^(-t / RC)
+ *
+ * "Charging" means the cap's positive pin sees a real external source
+ * (battery/Arduino pin, NOT another capacitor) AND its negative pin is
+ * grounded -- getExternalSupplyVoltage() deliberately ignores capacitor
+ * fallback voltage, so this never confuses "the cap is powering itself."
+ * Otherwise it discharges through whatever resistance sits on its net,
+ * or holds its charge indefinitely if nothing is currently connected to
+ * drain it (an ideal capacitor with no load).
+ */
+function computeNextCapacitorVoltage(
+  part: PartInstance,
+  netlist: Netlist,
+  dtSeconds: number
+): number {
+  const isPolarized = part.type === "capacitor-polarized";
+  const posPin = isPolarized ? "positive" : "pin1";
+  const negPin = isPolarized ? "negative" : "pin2";
+
+  const capacitanceFarads = Math.max(getCapacitanceFarads(part), 1e-15);
+  const storedVoltage = Number(part.properties?.storedVoltage ?? 0);
+  const voltageRating = Number(part.properties?.voltageRating ?? 1000);
+
+  const supplyV = netlist.getExternalSupplyVoltage(part.id, posPin);
+  const grounded = netlist.isNetGrounded(part.id, negPin);
+
+  if (supplyV > 0 && grounded) {
+    // Charging toward the supply, capped at the voltage rating for
+    // polarized caps (non-polarized caps don't clamp).
+    const target = isPolarized ? Math.min(supplyV, voltageRating) : supplyV;
+    const seriesR = netlist.getLoadResistanceOnNet(part.id, posPin) || 220;
+    const tau = seriesR * capacitanceFarads;
+    return target + (storedVoltage - target) * Math.exp(-dtSeconds / Math.max(tau, 1e-6));
+  }
+
+  // No active external source on this net -- either discharging through
+  // whatever load resistance is present, or holding charge if isolated.
+  const loadR = netlist.getLoadResistanceOnNet(part.id, posPin);
+  if (loadR > 0) {
+    const tau = loadR * capacitanceFarads;
+    return storedVoltage * Math.exp(-dtSeconds / Math.max(tau, 1e-6));
+  }
+
+  return storedVoltage;
 }
 
 function setupExternalDevices(
@@ -345,14 +381,6 @@ function setupExternalDevices(
   return devices;
 }
 
-/**
- * Discovers every passive buzzer wired to the Arduino and builds its
- * frequency-detection device. Tries both legs since either could be the
- * signal pin depending on how it was wired (the other leg goes to GND).
- * Kept as its own setup function (like the LCD's) rather than folded into
- * setupExternalDevices, since it needs its own onFrequencyChange callback
- * shape.
- */
 function setupPassiveBuzzerDevices(
   portB: AVRIOPort,
   portD: AVRIOPort,
@@ -390,7 +418,7 @@ function setupServoDevices(
   const devices: ServoExternalDevice[] = [];
 
   for (const part of parts) {
-    if (part.type !== "servo-mg90") continue; // must match the type string exactly
+    if (part.type !== "servo-mg90") continue;
 
     const signalPin = wiringNetlist.getConnectedArduinoPin(part.id, "signal");
     if (signalPin === null) continue;
@@ -404,16 +432,6 @@ function setupServoDevices(
   return devices;
 }
 
-/**
- * Builds the I2C bus's device list -- currently just LCD screens, one per
- * "lcd-16x2-i2c" part in the circuit that's actually powered (VCC + GND
- * reach real power/ground). Unlike the ultrasonic sensor, I2C's SDA/SCL
- * are the ATmega328's FIXED hardware pins (A4/A5) -- AVRTWI talks to
- * those registers directly, not through a generic port pin the way
- * digitalWrite()-driven pins do. So we don't need to resolve which
- * Arduino pin SDA/SCL land on the way we did for trig/echo; we only need
- * to know the device is powered.
- */
 function setupLcdI2CDevices(
   parts: PartInstance[],
   wires: Wire[],
@@ -513,7 +531,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   selectPart: (id) => set({ selectedPartId: id }),
 
   deletePart: (id) => {
-    removeBuzzerVoice(id); // no-op if id isn't a buzzer / nothing playing
+    removeBuzzerVoice(id);
     set((state) => ({
       parts: state.parts.filter((p) => p.id !== id),
       wires: state.wires.filter((w) => w.from.partId !== id && w.to.partId !== id),
@@ -618,6 +636,16 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     get().stopSimulation();
     stopAllBuzzers();
 
+    // Fresh run starts every capacitor uncharged, same as real hardware
+    // being powered off between test runs.
+    set((s) => ({
+      parts: s.parts.map((p) =>
+        p.type === "capacitor-polarized" || p.type === "capacitor-nonpolarized"
+          ? { ...p, properties: { ...p.properties, storedVoltage: 0 } }
+          : p
+      ),
+    }));
+
     const token = get().runToken + 1;
     set({ running: true, runToken: token, consoleLog: ["[Compiling sketch...]"], lcdScreens: {}, buzzerStates: {}, servoAngles: {} });
     
@@ -652,7 +680,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
         initialState.digitalPins
       );
 
-      // --- Passive buzzer setup -----------------------------------------
       const passiveBuzzerDevices = setupPassiveBuzzerDevices(
         portB,
         portD,
@@ -685,7 +712,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const externalDevices = [...ultrasonicDevices, ...passiveBuzzerDevices, ...servoDevices];
       const claimedPins = new Set(externalDevices.flatMap((d) => d.claimedPins));
 
-      // --- I2C / LCD setup ---------------------------------------------
       const lcdI2CDevices = setupLcdI2CDevices(
         initialState.parts,
         initialState.wires,
@@ -706,11 +732,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
         const bus = createI2CBus(lcdI2CDevices);
 
-        // These wrap the bus so we can see exactly what's happening on
-        // the wire, and (critically, confirmed working) call the
-        // matching `complete*` method on `twi` after each bus response --
-        // AVRTWI's real API expects the event handler to report back
-        // asynchronously via these rather than just returning a value.
         const wrappedBus = {
           start: (repeated: boolean) => {
             console.log("[I2C] start", { repeated });
@@ -746,7 +767,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
         (twi as unknown as { eventHandler: typeof wrappedBus }).eventHandler = wrappedBus;
       }
-      // -------------------------------------------------------------------
 
       const updatePinState = () => {
         const nextPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }> = {};
@@ -790,6 +810,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const speed = 16000000;
       const instructionsPerFrame = speed / 60;
       const CHUNK_SIZE = 100;
+      const FRAME_DT_SECONDS = 1 / 60;
 
       const executeFrame = () => {
         if (!get().running || get().runToken !== token) return;
@@ -807,8 +828,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
             syncSimpleDigitalInputs(frameNetlist, activeArduino.id, cpu, portB, portD, claimedPins);
 
-            // --- Active buzzer: simple DC forward-bias check, no CPU-cycle
-            // precision needed (fixed internal tone, just on/off). ---
             for (const part of currentState.parts) {
               if (part.type !== "active-buzzer") continue;
               const isSounding = frameNetlist.isActiveBuzzerSounding(part.id);
@@ -828,6 +847,24 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
                 } else {
                   stopBuzzerTone(part.id);
                 }
+              }
+            }
+
+            // --- Capacitor charge/discharge -------------------------------
+            // Runs off the same frameNetlist snapshot as everything else
+            // above; rides the RC exponential model each frame instead of
+            // needing its own AVR port listener the way the ultrasonic /
+            // buzzer devices do, since a capacitor never talks to the CPU
+            // directly -- it only ever appears as a fallback voltage on
+            // whatever net it sits on (see netlist.ts).
+            for (const part of currentState.parts) {
+              if (part.type !== "capacitor-polarized" && part.type !== "capacitor-nonpolarized") continue;
+
+              const nextVoltage = computeNextCapacitorVoltage(part, frameNetlist, FRAME_DT_SECONDS);
+              const prevVoltage = Number(part.properties?.storedVoltage ?? 0);
+
+              if (Math.abs(nextVoltage - prevVoltage) > 0.001) {
+                get().updatePartProperties(part.id, { storedVoltage: nextVoltage });
               }
             }
           }

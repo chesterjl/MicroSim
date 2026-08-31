@@ -18,19 +18,15 @@ const OFF_COLOR = "#2a1512";
 const ON_COLOR = "#ff8a1e";
 const ON_GLOW = "#ffb066";
 
-export function SevenSegmentPart({
-  part,
-  selected,
-  pinStates,
-  netlist,
-  onPinClick,
-}: {
+interface SevenSegmentPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function SevenSegmentPart({ part, selected, pinStates, netlist, onPinClick }: SevenSegmentPartProps) {
   const def = partDefinitions["seven-segment"];
   const halfW = (def.widthUnits * GRID) / 2;
   const halfH = (def.heightUnits * GRID) / 2;
@@ -87,7 +83,7 @@ export function SevenSegmentPart({
         fill={isLit("seg_dp") ? ON_COLOR : OFF_COLOR}
         style={glow("seg_dp")}
       />
-
+      
       {def.pins.map((pin) => (
         <PinDot
           key={pin.id}

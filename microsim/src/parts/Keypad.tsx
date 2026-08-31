@@ -3,7 +3,9 @@ import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
 import { useCircuitStore } from "../store/circuitStore";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLabel } from "./PinLabel";
+import { PinLeg } from "./PinLeg";
 
 const KEY_LABELS = [
   ["1", "2", "3", "A"],
@@ -121,44 +123,22 @@ export function KeypadPart({ part, selected, pinStates, onPinClick}: KeypadPartP
         })
       )}
 
-      {/* Pin header strip + labels */}
       {def.pins.map((pin) => (
-        <line
-          key={`leg-${pin.id}`}
-          x1={pin.x * GRID}
-          y1={bodyBottom}
-          x2={pin.x * GRID}
-          y2={pin.y * GRID}
-          stroke="#c7c7c7"
-          strokeWidth={2}
-        />
-      ))}
+        <g key={pin.id}>
+          <PinLabel x={pin.x * GRID} y={pin.y * GRID - 30} color="#a1a1aa" fontSize={6} text={pin.label}/>
+          <PinLeg x1={pin.x * GRID} y1={bodyBottom} x2={pin.x * GRID} y2={pin.y * GRID}/>
+          <Pin
+            key={pin.id}
+            x={pin.x * GRID}
+            y={pin.y * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
 
-      {def.pins.map((pin) => (
-        <text
-          key={`label-${pin.id}`}
-          x={pin.x * GRID}
-          y={pin.y * GRID - 30  }
-          textAnchor="middle"
-          fontSize={6}
-          fontWeight={700}
-          fill="#a1a1aa"
-          fontFamily="monospace"
-        >
-          {pin.label}
-        </text>
-      ))}
+        </g>
 
-      {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={pin.y * GRID}
-          pinId={pin.id}
-          label={pin.label}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
       ))}
     </g>
   );

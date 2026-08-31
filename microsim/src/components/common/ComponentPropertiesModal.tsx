@@ -1,12 +1,13 @@
 import { useCircuitStore } from "../../store/circuitStore";
 import type { PartInstance } from "../../types/types";
 import { BatteryModal } from "../parts/battery/BatteryModal";
+import { CapacitorModal } from "../parts/capacitor/CapacitorModal";
 import { LedModal } from "../parts/led/LedModal";
 import { PotentiometerModal } from "../parts/potentiometer/PotentiometerModal";
 import { PhotoresistorModal } from "../parts/resistor/PhotoresistorModal";
 import { ResistorModal } from "../parts/resistor/ResistorModal";
 import { SevenSegmentModal } from "../parts/segment/SevenSegmentModal";
-import { Dht11Modal } from "../parts/sensor/Dht11Modal";
+import { DhtModal } from "../parts/sensor/DhtModal";
 import { UltrasonicHcsr04Modal } from "../parts/sensor/UltrasonicHcsr04Modal";
 
 interface Props {
@@ -35,7 +36,11 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
     case "seven-segment":
       return <SevenSegmentModal part={part} onClose={onClose} />;
     case "dht11":                                                 
-      return <Dht11Modal part={part} onClose={onClose} />;
+    case "dht22":                                                 
+      return <DhtModal part={part} onClose={onClose} />;
+    case "capacitor-polarized":
+    case "capacitor-nonpolarized":
+      return <CapacitorModal part={part} onClose={onClose} />;
     default:
       return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">

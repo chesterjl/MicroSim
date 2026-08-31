@@ -2,7 +2,8 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLeg } from "./PinLeg";
 
 interface ToggleSwitchPartProps {
   part: PartInstance;
@@ -12,46 +13,23 @@ interface ToggleSwitchPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function ToggleSwitchPart({part, selected, onToggle, pinStates, onPinClick}: ToggleSwitchPartProps) {
+export function ToggleSwitchPart({ part, selected, onToggle, pinStates, onPinClick }: ToggleSwitchPartProps) {
   const on = Boolean(part.properties.on);
   const def = partDefinitions["toggle-switch"];
 
-  const bodyHalfW = 1.8 * GRID;
+  // Expanded width so the housing completely encloses the pins at x = +/-2
+  const bodyHalfW = 2.4 * GRID;
   const bodyTop = -1.8 * GRID;
+  const bodyBottom = 1.2 * GRID; 
 
-  const bodyBottom = 1.6 * GRID - 3;
-  const pinY = 2 * GRID - 3;
-
-  // Lever pivots at the top-center of the body.
   const pivotX = 0;
   const pivotY = bodyTop + 4;
   const leverLength = 1.5 * GRID;
   const leverAngle = on ? 35 : -35;
-    
+
   return (
-    <g
-      transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}
-    >
-      {/* Legs down to the pin tips */}
-      <line
-        x1={-1.5 * GRID}
-        y1={bodyBottom}
-        x2={-1.5 * GRID}
-        y2={pinY}
-        stroke="#9ca3af"
-        strokeWidth={2}
-      />
-
-      <line
-        x1={1.5 * GRID}
-        y1={bodyBottom}
-        x2={1.5 * GRID}
-        y2={pinY}
-        stroke="#9ca3af"
-        strokeWidth={2}
-      />
-
-      {/* Base housing */}
+    <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {/* Base Housing */}
       <rect
         x={-bodyHalfW}
         y={bodyTop}
@@ -63,32 +41,17 @@ export function ToggleSwitchPart({part, selected, onToggle, pinStates, onPinClic
         strokeWidth={selected ? 2.5 : 1.5}
       />
 
-      {/* Threaded bushing the lever sticks out of */}
-      <circle
-        cx={pivotX}
-        cy={pivotY}
-        r={5}
-        fill="#71717a"
-        stroke="#27272a"
-        strokeWidth={1}
-      />
+      {/* Pivot Bushing */}
+      <circle cx={pivotX} cy={pivotY} r={5} fill="#71717a" stroke="#27272a" strokeWidth={1} />
 
-      {/* Rocker lever */}
-      <g
-        style={{ cursor: onToggle ? "pointer" : "default" }}
-        onClick={(e) => {
+      {/* Rocker Lever */}
+      <g style={{ cursor: onToggle ? "pointer" : "default" }}
+        onClick={(e) => { 
           e.stopPropagation();
           onToggle?.(part.id);
-        }}
-      >
-        {/* Wide invisible hit area */}
-        <circle
-          cx={pivotX}
-          cy={pivotY}
-          r={12}
-          fill="transparent"
-        />
-
+        }}>
+          
+        <circle cx={pivotX} cy={pivotY} r={12} fill="transparent" />
         <line
           x1={pivotX}
           y1={pivotY}
@@ -99,51 +62,30 @@ export function ToggleSwitchPart({part, selected, onToggle, pinStates, onPinClic
           strokeLinecap="round"
           transform={`rotate(${leverAngle} ${pivotX} ${pivotY})`}
         />
-
-        <circle
-          cx={pivotX}
-          cy={pivotY}
-          r={3}
-          fill="#e4e4e7"
-        />
+        <circle cx={pivotX} cy={pivotY} r={3} fill="#e4e4e7" />
       </g>
 
-      {/* ON / OFF silkscreen */}
-      <text
-        x={-9}
-        y={bodyBottom - 3}
-        fontSize={5}
-        fontWeight={700}
-        fill={on ? "#52525b" : "#22c55e"}
-        textAnchor="middle"
-        fontFamily="monospace"
-      >
+      {/* Silkscreen Text */}
+      <text x={-10} y={bodyBottom - 4} fontSize={5} fontWeight={700} fill={on ? "#52525b" : "#22c55e"} textAnchor="middle" fontFamily="monospace">
         OFF
       </text>
-
-      <text
-        x={9}
-        y={bodyBottom - 3}
-        fontSize={5}
-        fontWeight={700}
-        fill={on ? "#22c55e" : "#52525b"}
-        textAnchor="middle"
-        fontFamily="monospace"
-      >
+      <text x={10} y={bodyBottom - 4} fontSize={5} fontWeight={700} fill={on ? "#22c55e" : "#52525b"} textAnchor="middle" fontFamily="monospace">
         ON
       </text>
 
-      {/* Pins */}
+      {/* Pure PinDots bound strictly to def.pins definition */}
       {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={pinY}
-          pinId={pin.id}
-          label={`${pin.label} (${on ? "closed" : "open"})`}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        <g key={pin.id}>
+          <PinLeg x1={pin.x * GRID} y1={bodyBottom} x2={pin.x * GRID} y2={pin.y * GRID}/>
+          <Pin
+            x={pin.x * GRID}
+            y={pin.y * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
+        </g>
       ))}
     </g>
   );

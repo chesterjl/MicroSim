@@ -2,7 +2,8 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLeg } from "./PinLeg";
 
 interface PhotoresistorPartProps {
   part: PartInstance;
@@ -11,13 +12,12 @@ interface PhotoresistorPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function PhotoresistorPart({part, selected, pinStates, onPinClick}: PhotoresistorPartProps) {
+export function PhotoresistorPart({ part, selected, pinStates, onPinClick }: PhotoresistorPartProps) {
   const def = partDefinitions.photoresistor;
   const lightLevel = (part.properties?.lightLevel as number) ?? 0.5;
 
   const bodyRx = 1.6 * GRID;
   const bodyRy = 1.3 * GRID;
-  const legTipY = 3.6 * GRID;
 
   const bodyFill = `rgb(${210 - lightLevel * 20}, ${
     200 - lightLevel * 10 + lightLevel * 30
@@ -27,25 +27,7 @@ export function PhotoresistorPart({part, selected, pinStates, onPinClick}: Photo
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-      {/* Legs */}
-      <line
-        x1={-1 * GRID}
-        y1={bodyRy * 0.7}
-        x2={-1 * GRID}
-        y2={legTipY}
-        stroke="#9ca3af"
-        strokeWidth={2}
-      />
-      <line
-        x1={1 * GRID}
-        y1={bodyRy * 0.7}
-        x2={1 * GRID}
-        y2={legTipY}
-        stroke="#9ca3af"
-        strokeWidth={2}
-      />
-
-      {/* Outer orange ring */}
+      {/* Outer ceramic/orange ring */}
       <ellipse
         cx={0}
         cy={0}
@@ -116,15 +98,18 @@ export function PhotoresistorPart({part, selected, pinStates, onPinClick}: Photo
       )}
 
       {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={legTipY}
-          pinId={pin.id}
-          label={pin.label}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        <g key={pin.id}>
+          <PinLeg x1={pin.x * GRID} y1={bodyRy * 0.7} x2={pin.x * GRID} y2={pin.y * GRID}/>
+          <Pin
+            key={pin.id}
+            x={pin.x * GRID}
+            y={pin.y * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
+        </g>
       ))}
     </g>
   );

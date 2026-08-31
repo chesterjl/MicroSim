@@ -2,7 +2,8 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLeg } from "./PinLeg";
 
 // Digit color map (0 to 9)
 const DIGIT_COLORS: Record<number, string> = {
@@ -63,9 +64,7 @@ export function getResistorColorBands(ohms: number): [string, string, string, st
   return [band1, band2, multiplier, tolerance];
 }
 
-/**
- * Formats raw OHMs into readable string (e.g. 1000 -> "1k", 470000 -> "470k")
- */
+// Formats raw OHMs into readable string (e.g. 1000 -> "1k", 470000 -> "470k")
 export function formatResistance(ohms: number): string {
   if (ohms >= 1_000_000) return `${+(ohms / 1_000_000).toFixed(2)}M`;
   if (ohms >= 1_000) return `${+(ohms / 1_000).toFixed(2)}k`;
@@ -79,18 +78,13 @@ interface ResistorPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function ResistorPart({part, selected, pinStates, onPinClick}: ResistorPartProps) {
+export function ResistorPart({ part, selected, pinStates, onPinClick }: ResistorPartProps) {
   const resistance = (part.properties?.resistance as number) ?? 220;
   const bands = getResistorColorBands(resistance);
-  const formattedText = formatResistance(resistance);
   const def = partDefinitions.resistor;
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation || 0})`}>
-      {/* Lead Wires */}
-      <line x1={-3 * GRID} y1={0} x2={-2 * GRID} y2={0} stroke="#999" strokeWidth={2} />
-      <line x1={2 * GRID} y1={0} x2={3 * GRID} y2={0} stroke="#999" strokeWidth={2} />
-
       {/* Resistor Body */}
       <rect
         x={-2 * GRID}
@@ -115,30 +109,18 @@ export function ResistorPart({part, selected, pinStates, onPinClick}: ResistorPa
       {/* Tolerance Band (Gold) */}
       <rect x={0.9 * GRID} y={-0.8 * GRID} width={5} height={1.6 * GRID} fill={bands[3]} />
 
-      {/* Resistance Label directly above resistor */}
-      <text
-        x={0}
-        y={-1.1 * GRID}
-        textAnchor="middle"
-        fill="#aaa"
-        fontSize="11"
-        fontWeight="600"
-        className="select-none pointer-events-none"
-      >
-        {formattedText}Ω
-      </text>
-
-      {/* Connection Pins */}
       {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={pin.y * GRID}
-          pinId={pin.id}
-          label={`${pin.label} (${formattedText}Ω)`}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        <g key={pin.id}>
+          <PinLeg x1={pin.x * GRID < 0 ? -2 * GRID : 2 * GRID} y1={0} x2={pin.x * GRID} y2={pin.y * GRID} />
+          <Pin
+            x={pin.x * GRID}
+            y={pin.y * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
+        </g>
       ))}
     </g>
   );

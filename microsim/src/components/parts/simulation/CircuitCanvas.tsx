@@ -10,7 +10,7 @@ import { GRID, type PartInstance, type PinRef } from "../../../types/types";
 const WORLD_WIDTH = 7000;
 const WORLD_HEIGHT = 7000;
 
-const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11"];
+const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized"];
 
 const SNAP_DISTANCE = 16;
 
@@ -133,11 +133,14 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     if (e.button !== 0) return;
 
     selectPart(partId);
-    if (isSimulating) return;
 
     const part = parts.find((p) => p.id === partId);
-    if (!part) return;
+    if (!part) return;  
 
+    // Prevent dragging pushbuttons during simulation so mouse clicks only operate the button
+    if (isSimulating && part.type === "pushbutton") return;
+    if (isSimulating) return;
+    
     if (!isBreadboard(part.type)) {
       removeWiresForPart(partId);
     }

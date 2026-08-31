@@ -2,7 +2,7 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
 
 const COLOR_PALETTE: Record<string, { off: string; on: string; glow: string }> = {
   red: { off: "#700000", on: "#ff2222", glow: "#ff4444" },
@@ -41,6 +41,7 @@ export function LedPart({part, selected, pinStates, netlist, onPinClick}: LedPar
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+
       {/* LED Pins/Legs (Preserved exact design & anode bend) */}
       {def?.pins.map((pin) => {
         const isAnode = pin.id === "anode";
@@ -57,7 +58,7 @@ export function LedPart({part, selected, pinStates, netlist, onPinClick}: LedPar
                  L ${pinX} ${midY + 3}
                  L ${pinX} ${pinY}`}
               fill="none"
-              stroke="#cccccc"
+              stroke="#c7c7c7"
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -72,7 +73,7 @@ export function LedPart({part, selected, pinStates, netlist, onPinClick}: LedPar
             y1={0}
             x2={pinX}
             y2={pinY}
-            stroke="#b3b3b3"
+            stroke="#c7c7c7"
             strokeWidth={2}
             strokeLinecap="round"
           />
@@ -121,7 +122,7 @@ export function LedPart({part, selected, pinStates, netlist, onPinClick}: LedPar
 
       {/* Pin dots */}
       {def?.pins.map((pin) => (
-        <PinDot
+        <Pin
           key={pin.id}
           x={pin.x * GRID}
           y={legHeight}

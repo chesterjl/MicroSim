@@ -27,7 +27,7 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
       }
     }
   }, [parts, addPart]);
-
+  
   const handleZoom = (delta: number) => {
     setZoomLevel((prev) => Math.min(Math.max(prev + delta, 0.4), 3.0));
   };

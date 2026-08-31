@@ -2,7 +2,8 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLeg } from "./PinLeg";
 
 interface PotentiometerPartProps {
   part: PartInstance;
@@ -11,8 +12,7 @@ interface PotentiometerPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function PotentiometerPart({part, selected, pinStates, onPinClick}: PotentiometerPartProps) {
-  
+export function PotentiometerPart({ part, selected, pinStates, onPinClick }: PotentiometerPartProps) {
   const def = partDefinitions.potentiometer;
   const maxResistance = (part.properties?.maxResistance as number) ?? 10000;
   // 0 = fully counter-clockwise (all resistance on pin2's side), 1 = fully
@@ -29,18 +29,10 @@ export function PotentiometerPart({part, selected, pinStates, onPinClick}: Poten
   const knobCy = -0.5 * GRID;
   const knobR = 2.2 * GRID;
 
-  const resistanceToPin1 = Math.round(maxResistance * wiperPosition);
-  const resistanceToPin2 = maxResistance - resistanceToPin1;
-
   const formatOhms = (ohms: number) => (ohms >= 1000 ? `${+(ohms / 1000).toFixed(1)}k` : `${ohms}`);
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-      {/* Legs down to the pin tips */}
-      <line x1={-2 * GRID} y1={bodyBottom} x2={-2 * GRID} y2={4 * GRID} stroke="#9ca3af" strokeWidth={2} />
-      <line x1={0} y1={bodyBottom} x2={0} y2={4 * GRID} stroke="#9ca3af" strokeWidth={2} />
-      <line x1={2 * GRID} y1={bodyBottom} x2={2 * GRID} y2={4 * GRID} stroke="#9ca3af" strokeWidth={2} />
-
       {/* Body */}
       <rect
         x={-bodyHalfW}
@@ -56,7 +48,7 @@ export function PotentiometerPart({part, selected, pinStates, onPinClick}: Poten
       {/* Rotating knob */}
       <circle cx={knobCx} cy={knobCy} r={knobR} fill="#2563eb" stroke="#1d4ed8" strokeWidth={1.5} />
       <circle cx={knobCx} cy={knobCy} r={knobR * 0.55} fill="#3b82f6" opacity={0.6} />
-      
+
       {/* Wiper indicator — rotates to reflect the current wiperPosition */}
       <line
         x1={knobCx}
@@ -74,20 +66,19 @@ export function PotentiometerPart({part, selected, pinStates, onPinClick}: Poten
         {formatOhms(maxResistance)}Ω
       </text>
 
+      {/* Dynamic Pin Lead Lines & Interactive Nodes */}
       {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={pin.y * GRID}
-          pinId={pin.id}
-          label={
-            pin.id === "wiper"
-              ? `Wiper — ${formatOhms(resistanceToPin1)}Ω to pin 1, ${formatOhms(resistanceToPin2)}Ω to pin 2`
-              : pin.label
-          }
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        <g key={pin.id}>
+          <PinLeg x1={ pin.x * GRID} y1={bodyBottom} x2={pin.x * GRID} y2={pin.y * GRID}/>
+          <Pin
+            x={pin.x * GRID}
+            y={pin.y * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
+        </g>
       ))}
     </g>
   );

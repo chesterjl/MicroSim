@@ -2,8 +2,10 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
 import { useCircuitStore } from "../store/circuitStore";
+import { Pin } from "./Pin";
+import { PinLabel } from "./PinLabel";
+import { PinLeg } from "./PinLeg";
 
 interface Lcd20x4I2CPartProps {
   part: PartInstance;
@@ -13,13 +15,7 @@ interface Lcd20x4I2CPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function Lcd20x4I2CPart({
-  part,
-  selected,
-  pinStates,
-  netlist,
-  onPinClick,
-}: Lcd20x4I2CPartProps) {
+export function Lcd20x4I2CPart({ part, selected, pinStates, netlist, onPinClick }: Lcd20x4I2CPartProps) {
   const def = partDefinitions["lcd-20x4-i2c"];
   const powered = netlist?.isPowered(part.id) ?? false;
 
@@ -129,51 +125,25 @@ export function Lcd20x4I2CPart({
         x={headerEdgeX - 6}
         y={-halfH + 6}
         width={6}
-        height={38}
+        height={39}
         fill="#1c1c1c"
         rx={1}
       />
 
-      {/* Connection Leg Lines */}
-      {def.pins.map((pin) => (
-        <line
-          key={`leg-${pin.id}`}
-          x1={headerEdgeX}
-          y1={pin.y * GRID}
-          x2={pin.x * GRID}
-          y2={pin.y * GRID}
-          stroke="#c9c9c9"
-          strokeWidth={2}
-        />
-      ))}
-
-      {/* Pin Labels */}
-      {def.pins.map((pin) => (
-        <text
-          key={`label-${pin.id}`}
-          x={headerEdgeX + 8}
-          y={pin.y * GRID + 2}
-          textAnchor="start"
-          fontSize={5.5}
-          fontWeight={700}
-          fill="#eafff2"
-          fontFamily="monospace"
-        >
-          {pin.label}
-        </text>
-      ))}
-
       {/* Interactive Pin Terminals */}
       {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={pin.y * GRID}
-          pinId={pin.id}
-          label={pin.label}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        <g key={pin.id}>
+          <PinLabel x={headerEdgeX + 8} y={pin.y * GRID + 2} color="#eafff2" textAnchor="start" text={pin.label}/>
+          <PinLeg x1={headerEdgeX} y1={pin.y * GRID} x2={pin.x * GRID} y2={pin.y * GRID}/>
+          <Pin
+            x={pin.x * GRID}
+            y={pin.y * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
+        </g>
       ))}
     </g>
   );

@@ -2,7 +2,9 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLabel } from "./PinLabel";
+import { PinLeg } from "./PinLeg";
 
 interface IrReceiverPartProps {
   part: PartInstance;
@@ -21,17 +23,6 @@ export function IrReceiverPart({part, selected, pinStates, onPinClick}: IrReceiv
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-      {def.pins.map((pin) => (
-        <line
-          key={`leg-${pin.id}`}
-          x1={pin.x * GRID}
-          y1={bodyBottom}
-          x2={pin.x * GRID}
-          y2={legTipY}
-          stroke="#c7c7c7"
-          strokeWidth={2}
-        />
-      ))}
 
       <rect
         x={-bodyHalfW}
@@ -57,30 +48,19 @@ export function IrReceiverPart({part, selected, pinStates, onPinClick}: IrReceiv
       />
 
       {def.pins.map((pin) => (
-        <text
-          key={`label-${pin.id}`}
-          x={pin.x * GRID}
-          y={bodyBottom - 4}
-          textAnchor="middle"
-          fontSize={5}
-          fontWeight={700}
-          fill="#a1a1aa"
-          fontFamily="monospace"
-        >
-          {pin.label}
-        </text>
-      ))}
+        <g>
+          <PinLabel x={pin.x * GRID} y={bodyBottom - 4} text={pin.label} color="#a1a1aa" fontSize={5}/>
+          <PinLeg x1={pin.x * GRID} y1={bodyBottom} x2={pin.x * GRID} y2={legTipY} />
+          <Pin
+            x={pin.x * GRID}
+            y={legTipY}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
 
-      {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={legTipY}
-          pinId={pin.id}
-          label={pin.label}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        </g>
       ))}
     </g>
   );

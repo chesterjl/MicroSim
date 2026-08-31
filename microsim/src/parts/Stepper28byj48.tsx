@@ -12,17 +12,14 @@ const WIRE_COLORS: Record<string, string> = {
   com: "#ef4444",   // Red
 };
 
-export function Stepper28byj48Part({
-  part,
-  selected,
-  pinStates,
-  onPinClick,
-}: {
+interface Stepper28byj48PartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
-}) {
+}
+
+export function Stepper28byj48Part({ part, selected, pinStates, onPinClick }: Stepper28byj48PartProps) {
   const def = partDefinitions["stepper-28byj48"];
   const bodyR = 8 * GRID; // 80
   const bodyCy = -2 * GRID;
@@ -97,7 +94,7 @@ export function Stepper28byj48Part({
       {def.pins.map((pin, index) => {
         const exitOffset = -8 + (index / Math.max(1, def.pins.length - 1)) * 16;
         const targetX = pin.x * GRID;
-
+          
         return (
           <path
             key={`wire-${pin.id}`}
@@ -132,7 +129,7 @@ export function Stepper28byj48Part({
         stroke="#e2e8f0"
         strokeWidth={1}
       />
-    
+
       {/* Interactive Pin Connection Dots dead-center on the actual pin grid coordinate */}
       {def.pins.map((pin) => (
         <PinDot

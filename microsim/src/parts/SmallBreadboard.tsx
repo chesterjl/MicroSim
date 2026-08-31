@@ -10,7 +10,7 @@ export function SmallBreadboardPart({part, selected, pinStates, onPinClick}: Bre
 
   const rowsTop = ["a", "b", "c", "d", "e"];
   const rowsBot = ["f", "g", "h", "i", "j"];
-
+  
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation})`}>
       {/* Outer Casing */}

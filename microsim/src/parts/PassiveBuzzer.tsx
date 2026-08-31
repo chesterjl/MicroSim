@@ -2,7 +2,8 @@ import { GRID } from "../types/types";
 import type { PartInstance } from "../types/types";
 import type { NetState, Netlist } from "../engine/netlist";
 import { partDefinitions } from "../config/partDefinitions";
-import { PinDot } from "./PinDot";
+import { Pin } from "./Pin";
+import { PinLeg } from "./PinLeg";
 
 interface PassiveBuzzerPartProps {
   part: PartInstance;
@@ -16,27 +17,9 @@ export function PassiveBuzzerPart({part, selected, pinStates, onPinClick}: Passi
   const def = partDefinitions["passive-buzzer"];
 
   const bodyRadius = 4 * GRID;
-  const pinY = 5 * GRID;
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
-
-      {/* Physical buzzer pins / legs */}
-      {def.pins.map((pin) => {
-        const pinX = pin.x * GRID;
-        return (
-          <line
-            key={`leg-${pin.id}`}
-            x1={pinX}
-            y1={bodyRadius}
-            x2={pinX}
-            y2={pinY}
-            stroke="#b3b3b3"
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-        );
-      })}
 
       {/* Passive buzzer body */}
       <circle
@@ -145,17 +128,18 @@ export function PassiveBuzzerPart({part, selected, pinStates, onPinClick}: Passi
         −
       </text>
 
-      {/* Pin dots - IMPORTANT: onClick is passed through */}
       {def.pins.map((pin) => (
-        <PinDot
-          key={pin.id}
-          x={pin.x * GRID}
-          y={pinY}
-          pinId={pin.id}
-          label={pin.label}
-          state={pinStates?.[pin.id]}
-          onClick={(e) => onPinClick?.(pin.id, e)}
-        />
+        <g key={pin.id}>
+          <PinLeg x1={pin.x * GRID} y1={bodyRadius} x2={pin.x * GRID} y2={5 * GRID}/>
+          <Pin
+            x={pin.x * GRID}
+            y={5 * GRID}
+            pinId={pin.id}
+            label={pin.label}
+            state={pinStates?.[pin.id]}
+            onClick={(e) => onPinClick?.(pin.id, e)}
+          />
+        </g>
       ))}
     </g>
   );
