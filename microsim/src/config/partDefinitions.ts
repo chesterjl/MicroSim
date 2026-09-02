@@ -294,30 +294,29 @@ export const partDefinitions: Record<string, PartDefinition> = {
   "lcd-16x2-i2c": {
     type: "lcd-16x2-i2c",
     displayName: "LCD 16x2 I2C",
-    widthUnits: 36,
-    heightUnits: 8,
+    widthUnits: 30, 
+    heightUnits: 10,
     pins: [
-      { id: "gnd", label: "GND",  x: -19,   y: -3, type: "passive" },
-      { id: "vcc", label: "VCC", x: -19, y: -2, type: "passive" },
-      { id: "sda", label: "SDA", x: -19, y: -1, type: "digital" },
-      { id: "scl",label: "SCL",x: -19, y: 0, type: "digital" },
-
+      { id: "gnd", label: "GND", x: -16, y: -2, type: "passive" }, // Shifted from -19
+      { id: "vcc", label: "VCC", x: -16, y: -1, type: "passive" }, // Shifted from -19
+      { id: "sda", label: "SDA", x: -16, y: 0, type: "digital" }, // Shifted from -19
+      { id: "scl", label: "SCL", x: -16, y: 1, type: "digital" }, // Shifted from -19
     ],
-    defaultProperties: { address: 0x27,cols: 16,rows: 2,backlight: true },
+    defaultProperties: { address: 0x27, cols: 16, rows: 2, backlight: true },
   },
 
   "lcd-20x4-i2c": {
     type: "lcd-20x4-i2c",
     displayName: "LCD 20x4 I2C",
-    widthUnits: 44,
-    heightUnits: 12,
+    widthUnits: 34,
+    heightUnits: 16,
     pins: [
-      { id: "gnd",label: "GND",x: -23,y: -5, type: "passive" },
-      { id: "vcc",label: "VCC",x: -23,y: -4, type: "passive" },
-      { id: "sda",label: "SDA",x: -23,y: -3, type: "digital" },
-      { id: "scl",label: "SCL",x: -23,y: -2, type: "digital" },
+      { id: "gnd", label: "GND", x: -18, y: -5, type: "passive" },
+      { id: "vcc", label: "VCC", x: -18, y: -4, type: "passive" },
+      { id: "sda", label: "SDA", x: -18, y: -3, type: "digital" },
+      { id: "scl", label: "SCL", x: -18, y: -2, type: "digital" },
     ],
-    defaultProperties: { address: 0x27,cols: 20,rows: 4,backlight: true },
+    defaultProperties: { address: 0x27, cols: 20, rows: 4, backlight: true },
   },
 
   "rgb-led": {

@@ -28,24 +28,27 @@ npm run dev
   and its cathode to any GND pin, hit Run, and watch it blink.
 
 ## Project structure
-
-- `src/types/types.ts` — core data model: Pin, PartDefinition, PartInstance, Wire (Shared TypeScript interfaces & types)
-- `src/config/partDefinitions.ts` — the "what a part IS" registry, including the (Static hardware specs & component metadata)
-  programmatically-laid-out Arduino Uno header pins
-- `src/parts/*.tsx` — the "what a part LOOKS LIKE" — one SVG component per part
-- `src/components/parts/{part_name}/{part_name}.tsx` — This is a modal component for each component that has properties to change like (led colors, resistor ohms value,. etc.)
 - `src/components/common/ComponentPropertiesModal.tsx` — this is a parent folder for the modal component for each part this is what we call and inside this file is where we call the exact modal component for each parts so we dont import 1 by 1 inside tha CircuitCanvas.tsx the modal component.
-- `src/parts/registry.tsx` — maps a part type string to its component
-- `src/utils/geometry.ts` — rotation-aware pin position math, grid snapping (Math and canvas helper functions)
+- `src/components/parts/pins` — this a folder for Pin.tsx (Pins for component parts), PinLeg.tsx (reusable svg line tags for displaying the pin legs), PinLabel (reusable svg text tag for displaying the pins label), and PinDot.tsx (reusable svg for displaying the Pins for Arduino, Breadboard, and PCB pins like Joystick.tsx component part)
+- `src/components/parts/wire/WireLayer.tsx` — wire svg
+- `src/components/simulation/CircuitCanvas.tsx` — SVG canvas: drag, pin click-to-wire, delete button, live pin coloring
+- `src/components/simulation/CodeEditor.tsx` — left-column code editor + Run/Stop + console
+- `src/components/simulation/PartsPallete.tsx` — This is the button in the CircuitCanvas.tsx is where the use can see all the component parts available and when they click it it will appear in the canvas
+- `src/config/partDefinitions.ts` — horizontal "add a part" strip
+- `src/types/types.ts` — core data model: Pin, PartDefinition, PartInstance, Wire (Shared TypeScript interfaces & types)
 - `src/engine/netlist.ts` — union-find netlist builder; resolves HIGH/LOW/floating (Core simulation & electrical calculations)
+configuring the properties but not all of the parts have this file example pushbutton doesnt need to have modal
+- `src/engine/registry.tsx` — maps a part type string to its component
+- `src/engine/netlist.tsx` — union-find netlist builder; resolves HIGH/LOW/floating (Core simulation & electrical calculations) per pin from wires + GND/power pins + Arduino output pins + button state (Will fix this now to phase 2)
+- `src/parts/{partname}/{partname}.tsx` — the "what a part LOOKS LIKE" — one SVG component per part
+- `src/parts/{partname}/{partname}.ts` — componentModel
+- `src/parts/{partname}/{partname}Modal.ts` — Component Modal (led colors, resistor ohms value,. etc.) for 
+- `src/utils/geometry.ts` — rotation-aware pin position math, grid snapping (Math and canvas helper functions)
   per pin from wires + GND/power pins + Arduino output pins + button state
+- `src/pages/*.tsx` — MicroSim pages example Simulator.tsx
 - `src/store/circuitStore.ts` — Zustand store: parts, wires, selection,
   in-progress wiring, sketch code, compile code, running state, digital pin states, console log (Global application state (Zustand))
-- `src/CircuitCanvas.tsx` — SVG canvas: drag, pin click-to-wire, delete button, live pin coloring
-- `src/WireLayer.tsx` — renders wires as curved paths, click to delete
-- `src/PartsPalette.tsx` — horizontal "add a part" strip
-- `src/CodeEditor.tsx` — left-column code editor + Run/Stop + console
-- `src/LandingPage.tsx` / `src/SimulatorPage.tsx` — the two top-level pages
+- `src/pages/LandingPage.tsx` / `src/pages/Simulator.tsx` — the two top-level pages
 - `src/App.tsx` — switches between landing and simulator (simple view state)
 
 

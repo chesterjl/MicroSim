@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { CircuitBoard } from "lucide-react";
 import Navbar from "../components/common/Navbar";
 import FilterTab from "../components/common/FilterTab";
-import ProjectCard from "../components/parts/project/ProjectCard";
 import type { BoardType } from "../types/types";
 import { COMMUNITY_PROJECTS, type Project } from "../utils/data";
+import ProjectCard from "../components/projects/ProjectCard";
 
 const CURRENT_USER_ID = 101;
 

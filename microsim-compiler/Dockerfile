@@ -42,6 +42,8 @@ RUN arduino-cli lib install "LiquidCrystal I2C"
 # we hit before adding this line) -- cheap insurance either way.
 RUN arduino-cli lib install "Servo"
 
+RUN arduino-cli lib install "Keypad"
+
 # Temperature Sensor -- next on the roadmap. DHT needs its own sensor
 # abstraction dependency installed separately, or arduino-cli's dependency
 # resolution will fail on #include <Adafruit_Sensor.h> inside DHT.h itself.

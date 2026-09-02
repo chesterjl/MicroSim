@@ -1,3 +1,18 @@
+// /engine/i2cLcdDevice.ts (LCD 16x2 I2C, LCD 20x4 I2C)
+
+export const DOTS_W = 5;
+export const DOTS_H = 8;
+
+export const DOT_SIZE = 2.2;
+export const DOT_GAP = 0.1;
+export const DOT_PITCH = DOT_SIZE + DOT_GAP;
+
+export const CHAR_GAP_X = 2.0;
+export const ROW_GAP_Y = 4.0;
+
+export const CHAR_BLOCK_W = (DOTS_W - 1) * DOT_PITCH + DOT_SIZE;
+export const CHAR_BLOCK_H = (DOTS_H - 1) * DOT_PITCH + DOT_SIZE;
+
 /**
  * A minimal, generic I2C device on the bus -- one per address. Multiple
  * devices can share the same physical bus (that's the whole point of
@@ -54,6 +69,7 @@ export function createI2CBus(devices: I2CDevice[]) {
   };
 }
 
+
 // PCF8574 I/O-expander pin mapping used by the "LiquidCrystal I2C"
 // (Frank de Brabander) library -- the standard one virtually every
 // I2C LCD tutorial uses. Each I2C byte sets these 8 output pins at once.
@@ -62,37 +78,33 @@ const RS_BIT = 0x01;
 const EN_BIT = 0x04;
 const BACKLIGHT_BIT = 0x08;
 
-/**
- * Decodes the actual HD44780-over-PCF8574 4-bit protocol into real
- * character data -- not a level-only approximation. The library sends
- * each 8-bit HD44780 command/character as two 4-bit nibbles, each nibble
- * latched into the LCD controller on the FALLING edge of the EN
- * ("enable") bit. We watch for that falling edge, capture the nibble
- * that was present while EN was high, and pair up two of them into a
- * real byte.
- *
- * Known simplification: only Clear Display (0x01) and Set DDRAM Address
- * (0x80+addr) commands are interpreted -- enough to correctly track
- * what lcd.print()/lcd.setCursor()/lcd.clear() actually display.
- * Other commands (function set, display on/off, entry mode, custom
- * characters) are accepted (ACKed) but otherwise ignored, since they
- * don't affect what text ends up on screen for typical sketches.
- */
 export function createHd44780Device(
   address: number,
   cols: number,
   rowCount: number,
-  onChange: (lines: string[], backlightOn: boolean) => void
+  onChange: (cells: number[][], cgram: number[][], backlightOn: boolean) => void
 ): I2CDevice {
   let lastByte = 0;
   let backlightOn = true;
   let highNibble: number | null = null;
   let rsForPendingByte = 0;
 
-  const rows: string[][] = Array.from(
-    { length: rowCount },
-    () => Array(cols).fill(" ")
-  );
+  // DDRAM: one character CODE (0-255) per cell -- NOT pre-rendered text.
+  // Keeping raw codes means a code in the 0-7 range gets re-resolved
+  // against whatever's currently in CGRAM at RENDER time, not baked in
+  // here -- exactly like real hardware, where redefining a custom
+  // character with lcd.createChar() after it's already been printed
+  // updates every on-screen instance of it immediately.
+  const cells: number[][] = Array.from({ length: rowCount }, () => Array(cols).fill(0x20));
+
+  // CGRAM: 8 programmable character slots, 8 rows each, lower 5 bits of
+  // each byte used (bit4 = leftmost pixel, bit0 = rightmost) -- matches
+  // the real HD44780U's CGRAM layout exactly, so lcd.createChar() just
+  // works without any special-casing above this layer.
+  const cgram: number[][] = Array.from({ length: 8 }, () => Array(8).fill(0));
+
+  let addressMode: "ddram" | "cgram" = "ddram";
+  let cgramAddress = 0;
 
   let cursorRow = 0;
   let cursorCol = 0;
@@ -101,7 +113,11 @@ export function createHd44780Device(
   const ROW_OFFSETS_4 = [0x00, 0x40, 0x14, 0x54];
 
   function emit() {
-    onChange(rows.map((r) => r.join("")), backlightOn);
+    onChange(
+      cells.map((row) => [...row]),
+      cgram.map((slot) => [...slot]),
+      backlightOn
+    );
   }
 
   function handleFullByte(rs: number, byte: number) {
@@ -109,19 +125,22 @@ export function createHd44780Device(
       if (byte === 0x01) {
         // Clear display
         for (let row = 0; row < rowCount; row++) {
-          rows[row] = Array(cols).fill(" ");
+          cells[row] = Array(cols).fill(0x20);
         }
-
         cursorRow = 0;
         cursorCol = 0;
+        addressMode = "ddram";
         emit();
+      } else if ((byte & 0xc0) === 0x40) {
+        // Set CGRAM address -- subsequent data bytes write one row of
+        // one custom character slot each, instead of printing to the
+        // screen, until a "set DDRAM address" command switches back.
+        cgramAddress = byte & 0x3f;
+        addressMode = "cgram";
       } else if ((byte & 0x80) !== 0) {
-        // Set DDRAM address -- HD44780 uses different row offsets
-        // depending on whether the display is 16x2 or 20x4.
+        // Set DDRAM address
         const addr = byte & 0x7f;
-
-        const rowOffsets =
-          rowCount === 4 ? ROW_OFFSETS_4 : ROW_OFFSETS_2;
+        const rowOffsets = rowCount === 4 ? ROW_OFFSETS_4 : ROW_OFFSETS_2;
 
         let matchedRow = 0;
         let matchedOffset = rowOffsets[0];
@@ -135,20 +154,23 @@ export function createHd44780Device(
 
         cursorRow = matchedRow;
         cursorCol = addr - matchedOffset;
+        addressMode = "ddram";
       }
-
       // Function set / display control / entry mode: accepted, no-op.
+    } else if (addressMode === "cgram") {
+      // Custom character data -- lower 5 bits are the pixel row, upper
+      // 3 ignored (matches the real chip; lcd.createChar() callers
+      // conventionally pass 0b000xxxxx anyway).
+      const slot = (cgramAddress >> 3) & 0x07;
+      const row = cgramAddress & 0x07;
+      cgram[slot][row] = byte & 0x1f;
+      cgramAddress = (cgramAddress + 1) & 0x3f;
+      emit();
     } else {
-      // Data byte -- a printable character at the current cursor position.
-      if (
-        cursorCol >= 0 &&
-        cursorCol < cols &&
-        cursorRow >= 0 &&
-        cursorRow < rowCount
-      ) {
-        rows[cursorRow][cursorCol] = String.fromCharCode(byte);
+      // Data byte -- a character CODE at the current cursor position.
+      if (cursorCol >= 0 && cursorCol < cols && cursorRow >= 0 && cursorRow < rowCount) {
+        cells[cursorRow][cursorCol] = byte;
       }
-
       cursorCol++;
       emit();
     }
@@ -163,7 +185,6 @@ export function createHd44780Device(
       const enWasHigh = (lastByte & EN_BIT) !== 0;
 
       if (enWasHigh && !enNow) {
-        // Falling edge -- this is the moment the HD44780 actually latches data.
         const nibble = (lastByte >> 4) & 0x0f;
         const rs = lastByte & RS_BIT;
 
@@ -171,16 +192,13 @@ export function createHd44780Device(
           highNibble = nibble;
           rsForPendingByte = rs;
         } else {
-          handleFullByte(
-            rsForPendingByte,
-            (highNibble << 4) | nibble
-          );
+          handleFullByte(rsForPendingByte, (highNibble << 4) | nibble);
           highNibble = null;
         }
       }
 
       lastByte = value;
-      return true; // always ACK
+      return true;
     },
   };
 }

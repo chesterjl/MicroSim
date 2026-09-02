@@ -14,7 +14,8 @@ import type { ServoExternalDevice } from "../engine/servoDevice";
 import { createIrReceiverDevice, IR_BUTTON_CODES } from "../engine/irRemote";
 
 interface LcdScreenState {
-  lines: string[]
+  cells: number[][];
+  cgram: number[][];
   backlightOn: boolean;
 }
 
@@ -310,16 +311,12 @@ function computeNextCapacitorVoltage(
   const grounded = netlist.isNetGrounded(part.id, negPin);
 
   if (supplyV > 0 && grounded) {
-    // Charging toward the supply, capped at the voltage rating for
-    // polarized caps (non-polarized caps don't clamp).
     const target = isPolarized ? Math.min(supplyV, voltageRating) : supplyV;
     const seriesR = netlist.getLoadResistanceOnNet(part.id, posPin) || 220;
     const tau = seriesR * capacitanceFarads;
     return target + (storedVoltage - target) * Math.exp(-dtSeconds / Math.max(tau, 1e-6));
   }
 
-  // No active external source on this net -- either discharging through
-  // whatever load resistance is present, or holding charge if isolated.
   const loadR = netlist.getLoadResistanceOnNet(part.id, posPin);
   if (loadR > 0) {
     const tau = loadR * capacitanceFarads;
@@ -381,6 +378,15 @@ function setupExternalDevices(
   return devices;
 }
 
+/**
+ * Only creates a device for a passive buzzer that's wired the way real
+ * hardware requires -- one leg to GND, the other to an Arduino signal
+ * pin (see passiveBuzzer.ts's driveAfterPower). Straight-to-DC or
+ * floating wiring now silently produces no device, same as it silently
+ * produced no sound before (since the AVR port would just never toggle)
+ * -- but now that's a deliberate check instead of an accident of how
+ * getConnectedArduinoPin() happened to behave.
+ */
 function setupPassiveBuzzerDevices(
   portB: AVRIOPort,
   portD: AVRIOPort,
@@ -394,10 +400,12 @@ function setupPassiveBuzzerDevices(
 
   for (const part of parts) {
     if (part.type !== "passive-buzzer") continue;
+    if (!wiringNetlist.hasFlag("passiveBuzzerReady", part.id)) continue;
 
-    const posPin = wiringNetlist.getConnectedArduinoPin(part.id, "positive");
-    const negPin = wiringNetlist.getConnectedArduinoPin(part.id, "negative");
-    const signalPin = posPin ?? negPin;
+    const isReversed = wiringNetlist.hasFlag("passiveBuzzerReversed", part.id);
+    const signalPin = isReversed
+      ? wiringNetlist.getConnectedArduinoPin(part.id, "negative")
+      : wiringNetlist.getConnectedArduinoPin(part.id, "positive");
     if (signalPin === null) continue;
 
     devices.push(createPassiveBuzzerDevice(portB, portD, part.id, signalPin, onFrequencyChange));
@@ -436,7 +444,7 @@ function setupLcdI2CDevices(
   parts: PartInstance[],
   wires: Wire[],
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
-  onScreenChange: (partId: string, lines: string[], backlightOn: boolean) => void
+  onScreenChange: (partId: string, cells: number[][], cgram: number[][], backlightOn: boolean) => void
 ): I2CDevice[] {
   const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
   const devices: I2CDevice[] = [];
@@ -459,8 +467,8 @@ function setupLcdI2CDevices(
         address,
         dims.cols,
         dims.rows,
-        (lines, backlightOn) => {
-          onScreenChange(part.id, lines, backlightOn);
+        (cells, cgram, backlightOn) => {
+          onScreenChange(part.id, cells, cgram, backlightOn);
         }
       )
     );
@@ -490,8 +498,8 @@ function syncSimpleDigitalInputs(
 
     const { port, bit } = getPortAndBit(pin, portB, portD);
     const netState = netlist.getPinState(arduinoId, `d${pin}`);
-    if (netState === "floating") continue;
-    port.setPin(bit, netState === "high");
+    if (netState === "FLOATING") continue;
+    port.setPin(bit, netState === "HIGH");
   }
 }
 
@@ -636,8 +644,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     get().stopSimulation();
     stopAllBuzzers();
 
-    // Fresh run starts every capacitor uncharged, same as real hardware
-    // being powered off between test runs.
     set((s) => ({
       parts: s.parts.map((p) =>
         p.type === "capacitor-polarized" || p.type === "capacitor-nonpolarized"
@@ -716,9 +722,9 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
         initialState.parts,
         initialState.wires,
         initialState.digitalPins,
-        (partId, lines, backlightOn) => {
+        (partId, cells, cgram, backlightOn) => {
           set((s) => ({
-            lcdScreens: { ...s.lcdScreens, [partId]: { lines, backlightOn } },
+            lcdScreens: { ...s.lcdScreens, [partId]: { cells, cgram, backlightOn } },
           }));
         }
       );
@@ -850,13 +856,6 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
               }
             }
 
-            // --- Capacitor charge/discharge -------------------------------
-            // Runs off the same frameNetlist snapshot as everything else
-            // above; rides the RC exponential model each frame instead of
-            // needing its own AVR port listener the way the ultrasonic /
-            // buzzer devices do, since a capacitor never talks to the CPU
-            // directly -- it only ever appears as a fallback voltage on
-            // whatever net it sits on (see netlist.ts).
             for (const part of currentState.parts) {
               if (part.type !== "capacitor-polarized" && part.type !== "capacitor-nonpolarized") continue;
 

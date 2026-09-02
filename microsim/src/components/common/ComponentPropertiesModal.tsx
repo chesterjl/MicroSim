@@ -1,14 +1,14 @@
 import { useCircuitStore } from "../../store/circuitStore";
 import type { PartInstance } from "../../types/types";
-import { BatteryModal } from "../parts/battery/BatteryModal";
-import { CapacitorModal } from "../parts/capacitor/CapacitorModal";
-import { LedModal } from "../parts/led/LedModal";
-import { PotentiometerModal } from "../parts/potentiometer/PotentiometerModal";
-import { PhotoresistorModal } from "../parts/resistor/PhotoresistorModal";
-import { ResistorModal } from "../parts/resistor/ResistorModal";
-import { SevenSegmentModal } from "../parts/segment/SevenSegmentModal";
-import { DhtModal } from "../parts/sensor/DhtModal";
-import { UltrasonicHcsr04Modal } from "../parts/sensor/UltrasonicHcsr04Modal";
+import { BatteryModal } from "../../parts/battery/BatteryModal";
+import { CapacitorModal } from "../../parts/capacitor/CapacitorModal";
+import { LedModal } from "../../parts/led/LedModal";
+import { PotentiometerModal } from "../../parts/potentiometer/PotentiometerModal";
+import { PhotoresistorModal } from "../../parts/photoresistor/PhotoresistorModal";
+import { ResistorModal } from "../../parts/resistor/ResistorModal";
+import { DhtModal } from "../../parts/dht/DhtModal";
+import { UltrasonicHcsr04Modal } from "../../parts/hcSr04/Hcsr04Modal";
+import { SevenSegmentModal } from "../../parts/sevenSegment/SevenSegmentModal";
 
 interface Props {
   part: PartInstance | null;
