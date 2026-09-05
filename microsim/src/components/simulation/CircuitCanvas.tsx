@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCircuitStore } from "../../store/circuitStore";
 import { buildNetlist } from "../../engine/netlist";
-import { getResolvedPins, snapToGrid } from "../../utils/geometry";
+import { getResolvedPins, snapToGrid } from "../../engine/physics/geometry";
 import { WireLayer } from "../parts/wire/WireLayer";
 import { partDefinitions } from "../../config/partDefinitions";
 import { GRID, type PartInstance, type PinRef } from "../../types/types";

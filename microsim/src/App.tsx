@@ -1,4 +1,3 @@
-// src/App.tsx
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { LandingPage } from "./pages/LandingPage";
 import Community from "./pages/Community";

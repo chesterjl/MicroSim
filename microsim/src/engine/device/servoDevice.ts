@@ -17,11 +17,10 @@
  */
 import type { AVRIOPort, CPU } from "avr8js";
 import { PinState } from "avr8js";
-
-export interface ServoExternalDevice {
-  claimedPins: number[];
-  update: (cpu: CPU) => void;
-}
+import type { ExternalDevice } from "./externalDevice";
+import type { PartInstance } from "../../types/types";
+import type { Netlist } from "../netlist";
+import { getPortAndBit } from "./arduinoPins";
 
 const CPU_HZ = 16_000_000;
 const MIN_PULSE_US = 500;
@@ -48,7 +47,7 @@ export function createServoDevice(
   bit: number,
   signalPin: number,
   onAngleChange: (angleDegrees: number) => void
-): ServoExternalDevice {
+): ExternalDevice {
   let lastHigh = port.pinState(bit) === PinState.High;
   let risingEdgeCycle: number | null = null;
   let lastAngle = -1;
@@ -88,4 +87,28 @@ export function createServoDevice(
       edgePending = null;
     },
   };
+}
+
+export function setupServoDevices(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  parts: PartInstance[],
+  wiringNetlist: Netlist,
+  onAngleChange: (partId: string, angleDegrees: number) => void
+): ExternalDevice[] {
+  const devices: ExternalDevice[] = [];
+
+  for (const part of parts) {
+    if (part.type !== "servo-mg90") continue;
+
+    const signalPin = wiringNetlist.getConnectedArduinoPin(part.id, "signal");
+    if (signalPin === null) continue;
+
+    const { port, bit } = getPortAndBit(signalPin, portB, portD);
+    devices.push(
+      createServoDevice(port, bit, signalPin, (angle) => onAngleChange(part.id, angle))
+    );
+  }
+
+  return devices;
 }

@@ -23,4 +23,19 @@ export const potentiometerModel: ComponentModel = {
     const pin2V = ctx.resolveNetVoltage(pin2Root);
     ctx.netVoltageOverride.set(wiperRoot, pin1V + (pin2V - pin1V) * wiperPosition);
   },
+
+  seriesResistanceContribution(part, roots, ctx) {
+    const p1Root = ctx.pinRoot(part.id, "pin1");
+    const wiperRoot = ctx.pinRoot(part.id, "wiper");
+    const p2Root = ctx.pinRoot(part.id, "pin2");
+
+    if (!roots.has(p1Root) && !roots.has(wiperRoot) && !roots.has(p2Root)) return 0;
+
+    const maxRes = (part.properties?.maxResistance as number) ?? 10000;
+    let ohms = part.properties?.value as number;
+    if (ohms === undefined && typeof part.properties?.wiperPosition === "number") {
+      ohms = Math.round(maxRes * part.properties.wiperPosition);
+    }
+    return ohms ?? 5000;
+  },
 };

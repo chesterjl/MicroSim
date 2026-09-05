@@ -14,6 +14,7 @@ import { potentiometerModel } from "../parts/potentiometer/potentiometer";
 import { pushbuttonModel } from "../parts/pushbutton/pushbutton";
 import { relayModel } from "../parts/relay/relay";
 import { resistorModel } from "../parts/resistor/resistor";
+import { rgbLedModel } from "../parts/rgbLed/rgbLed";
 import { sevenSegmentModel } from "../parts/sevenSegment/sevenSegment";
 import { toggleSwitchModel } from "../parts/toggleSwitch/toggleSwitch";
 import { uln2003Model } from "../parts/uln2003Driver/ul2003Driver";
@@ -21,6 +22,7 @@ import type { ComponentModel } from "./componentModel";
 
 export const componentModelRegistry: Record<string, ComponentModel> = {
     "led": ledModel,
+    "rgb-led": rgbLedModel,
     "active-buzzer": activeBuzzerModel,
     "arduino-uno": arduinoUnoModel,
     "battery": batteryModel,

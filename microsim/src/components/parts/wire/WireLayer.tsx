@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PartInstance, Wire } from "../../../types/types";
-import { getResolvedPins, buildOrthogonalPath } from "../../../utils/geometry";
+import { getResolvedPins, buildOrthogonalPath } from "../../../engine/physics/geometry";
 import { WireModal } from "./WireModal";
 
 function resolvePinPosition(parts: PartInstance[], partId: string, pinId: string) {

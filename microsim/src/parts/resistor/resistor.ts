@@ -8,4 +8,13 @@ export const resistorModel: ComponentModel = {
     // the same net.
     ctx.uf.union(ctx.key(part.id, "pin1"), ctx.key(part.id, "pin2"));
   },
+
+  seriesResistanceContribution(part, roots, ctx) {
+    const pin1Root = ctx.pinRoot(part.id, "pin1");
+    if (!roots.has(pin1Root)) return 0; // connect() already shorted pin1<->pin2
+
+    const rawRes = part.properties?.resistance;
+    return typeof rawRes === "number" ? rawRes : parseFloat(String(rawRes)) || 220;
+  },
 };
+

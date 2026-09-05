@@ -7,8 +7,8 @@ import { useCircuitStore } from "../../store/circuitStore";
 import { Pin } from "../../components/parts/pin/Pin";
 import { PinLabel } from "../../components/parts/pin/PinLabel";
 import { PinLeg } from "../../components/parts/pin/PinLeg";
-import { HD44780_FONT, HD44780_FONT_FALLBACK } from "../../engine/hd44780Font";
-import { CHAR_BLOCK_H, CHAR_BLOCK_W, CHAR_GAP_X, DOT_PITCH, DOT_SIZE, DOTS_W, ROW_GAP_Y } from "../../engine/i2cLcdDevice";
+import { HD44780_FONT, HD44780_FONT_FALLBACK } from "../../engine/device/hd44780Font";
+import { CHAR_BLOCK_H, CHAR_BLOCK_W, CHAR_GAP_X, DOT_PITCH, DOT_SIZE, DOTS_W, ROW_GAP_Y } from "../../engine/device/i2cLcdDevice";
 
 interface Lcd16x2I2CPartProps {
   part: PartInstance;

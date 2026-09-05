@@ -1,5 +1,7 @@
-// /engine/i2cLcdDevice.ts (LCD 16x2 I2C, LCD 20x4 I2C)
+import type { PartInstance, Wire } from "../../types/types";
+import { buildNetlist, type Netlist } from "../netlist";
 
+// (LCD 16x2 I2C, LCD 20x4 I2C)
 export const DOTS_W = 5;
 export const DOTS_H = 8;
 
@@ -201,4 +203,47 @@ export function createHd44780Device(
       return true;
     },
   };
+}
+
+
+export function setupLcdI2CDevices(
+  parts: PartInstance[],
+  wires: Wire[],
+  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
+  onScreenChange: (
+    partId: string,
+    cells: number[][],
+    cgram: number[][],
+    backlightOn: boolean
+  ) => void
+): I2CDevice[] {
+  const wiringNetlist: Netlist = buildNetlist(parts, wires, digitalPins, true);
+  const devices: I2CDevice[] = [];
+
+  for (const part of parts) {
+    if (part.type !== "lcd-16x2-i2c" && part.type !== "lcd-20x4-i2c") continue;
+
+    const dims =
+      part.type === "lcd-20x4-i2c"
+        ? { cols: 20, rows: 4 }
+        : { cols: 16, rows: 2 };
+
+    const powered = wiringNetlist.isPowered(part.id);
+    if (!powered) continue;
+
+    const address = 0x27;
+
+    devices.push(
+      createHd44780Device(
+        address,
+        dims.cols,
+        dims.rows,
+        (cells, cgram, backlightOn) => {
+          onScreenChange(part.id, cells, cgram, backlightOn);
+        }
+      )
+    );
+  }
+
+  return devices;
 }

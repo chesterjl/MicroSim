@@ -28,7 +28,7 @@ class UnionFind {
     }
     return root;
   }
-    
+
   union(a: string, b: string) {
     const ra = this.find(a);
     const rb = this.find(b);
@@ -57,23 +57,10 @@ export interface Netlist {
   hasFlag: (flagName: string, partId: string) => boolean;
 }
 
-function calculateBrightness(totalOhms: number): number {
-  if (totalOhms <= 0) return 1.0;
-  if (totalOhms >= 100000) return 0;
-  const baseOhms = 220;
-  const ratio = baseOhms / totalOhms;
-  return Math.max(0, Math.min(1, ratio));
-}
-
-function photoresistorOhms(lightLevel: number): number {
-  const darkOhms = 1_000_000;
-  const brightOhms = 100;
-  const clamped = Math.max(0, Math.min(1, lightLevel));
-  const logDark = Math.log10(darkOhms);
-  const logBright = Math.log10(brightOhms);
-  const logOhms = logDark + (logBright - logDark) * clamped;
-  return Math.round(Math.pow(10, logOhms));
-}
+// NOTE: calculateBrightness and photoresistorOhms used to live here.
+// calculateBrightness moved to ./physics/brightness.ts (shared by any
+// emitter model). photoresistorOhms moved into photoresistor.ts, since
+// it's math specific to that one part.
 
 export function buildNetlist(
   parts: PartInstance[],
@@ -132,6 +119,20 @@ export function buildNetlist(
     return 0;
   }
 
+  // Generic series-resistance summation -- delegates to each part's own
+  // ComponentModel instead of hardcoding resistor/potentiometer/
+  // photoresistor here. netlist.ts no longer needs to know which part
+  // types are resistive; it just asks. Exposed on ctx so Phase E hooks
+  // (getBrightness, getChannelBrightness) can call it too.
+  function sumSeriesResistance(roots: Set<string>): number {
+    let totalOhms = 0;
+    for (const p of parts) {
+      const contribution = getComponentModel(p.type)?.seriesResistanceContribution?.(p, roots, ctx);
+      if (contribution) totalOhms += contribution;
+    }
+    return totalOhms;
+  }
+
   const ctx: SimContext = {
     parts,
     wires,
@@ -151,6 +152,7 @@ export function buildNetlist(
     pinRoot: (partId, pinId) => uf.find(pinKey(partId, pinId)),
     resolveNetState: (root) => resolveNetState(root),
     resolveNetVoltage: (root) => resolveNetVoltage(root),
+    sumSeriesResistance: (roots) => sumSeriesResistance(roots),
     setFlag: (flagName, partId) => {
       if (!flags.has(flagName)) flags.set(flagName, new Set());
       flags.get(flagName)!.add(partId);
@@ -170,8 +172,7 @@ export function buildNetlist(
     uf.union(pinKey(wire.from.partId, wire.from.pinId), pinKey(wire.to.partId, wire.to.pinId));
   }
 
-  // --- Phase A: pure topology unions (must run before ground/power
-  // collection below -- see the ordering invariant in componentModel.ts) ---
+  // --- Phase A: pure topology unions ---
   for (const part of parts) {
     getComponentModel(part.type)?.connect?.(part, ctx);
   }
@@ -199,25 +200,23 @@ export function buildNetlist(
     model?.drive?.(part, ctx);
   }
 
-  // --- Phase B2: drive behavior that needs every part's power/ground
-  // already collected (ultrasonic, active/passive buzzers, LED polarity,
-  // DC motor direction) ---
+  // --- Phase B2 ---
   for (const part of parts) {
     getComponentModel(part.type)?.driveAfterPower?.(part, ctx);
   }
 
-  // --- Phase C: postResolve -- resolveNetState is meaningful from here on ---
+  // --- Phase C: postResolve ---
   for (const part of parts) {
     getComponentModel(part.type)?.postResolve?.(part, ctx);
   }
-
+  
   function isPartPowered(partId: string): boolean {
     const vccRoot = uf.find(pinKey(partId, "vcc"));
     const gndRoot = uf.find(pinKey(partId, "gnd"));
     return netPower.has(vccRoot) && netGround.has(gndRoot);
   }
-  
-  // --- Phase D: resolveVoltage -- resolveNetVoltage is meaningful from here on ---
+
+  // --- Phase D: resolveVoltage ---
   for (const part of parts) {
     getComponentModel(part.type)?.resolveVoltage?.(part, ctx);
   }
@@ -233,140 +232,25 @@ export function buildNetlist(
     return null;
   }
 
-  // --- Everything below is unchanged from before the migration. These are
-  // behavior *queries* (brightness, lit-state, RGB channels) rather than
-  // connectivity -- a different axis of complexity, and a reasonable
-  // Phase 2b follow-up once this connectivity migration has proven itself
-  // in practice. ---
-
-  function sumSeriesResistance(componentRoots: Set<string>): number {
-    let totalOhms = 0;
-
-    for (const p of parts) {
-      if (p.type === "resistor") {
-        const rRoot = uf.find(pinKey(p.id, "pin1"));
-        if (componentRoots.has(rRoot)) {
-          const rawRes = p.properties?.resistance;
-          const ohms = typeof rawRes === "number" ? rawRes : parseFloat(String(rawRes)) || 220;
-          totalOhms += ohms;
-        }
-      } else if (p.type === "potentiometer") {
-        const p1Root = uf.find(pinKey(p.id, "pin1"));
-        const wiperRoot = uf.find(pinKey(p.id, "wiper"));
-        const p2Root = uf.find(pinKey(p.id, "pin2"));
-
-        if (componentRoots.has(p1Root) || componentRoots.has(wiperRoot) || componentRoots.has(p2Root)) {
-          const maxRes = (p.properties?.maxResistance as number) ?? 10000;
-          let ohms = p.properties?.value as number;
-          if (ohms === undefined && typeof p.properties?.wiperPosition === "number") {
-            ohms = Math.round(maxRes * p.properties.wiperPosition);
-          }
-          if (ohms === undefined) ohms = 5000;
-          totalOhms += ohms;
-        }
-      } else if (p.type === "photoresistor") {
-        const r1Root = uf.find(pinKey(p.id, "pin1"));
-        if (componentRoots.has(r1Root)) {
-          const lightLevel = (p.properties?.lightLevel as number) ?? 0.5;
-          totalOhms += photoresistorOhms(lightLevel);
-        }
-      }
-    }
-
-    return totalOhms;
-  }
-  
+  // --- Phase E: derived behavior queries -- brightness, lit-state, RGB
+  // channels. Fully delegated to each part's ComponentModel; netlist.ts
+  // no longer contains a single part.type === "..." check in this section. ---
   function calculatePartBrightness(partId: string): number {
     const part = parts.find((p) => p.id === partId);
     if (!part) return 0;
-
-    const def = partDefinitions[part.type];
-    if (!def) return 0;
-
-    if (part.type === "led") {
-      const anodeRoot = uf.find(pinKey(part.id, "anode"));
-      const cathodeRoot = uf.find(pinKey(part.id, "cathode"));
-
-      const anodeState = resolveNetState(anodeRoot);
-      const cathodeState = resolveNetState(cathodeRoot);
-
-      if (anodeState !== "HIGH" || cathodeState !== "LOW") {
-        return 0;
-      }
-    } else {
-      const componentRoots = new Set(def.pins.map((pin) => uf.find(pinKey(part.id, pin.id))));
-      let hasHigh = false;
-      let hasLow = false;
-
-      for (const root of componentRoots) {
-        const state = resolveNetState(root);
-        if (state === "HIGH") hasHigh = true;
-        if (state === "LOW") hasLow = true;
-      }
-
-      if (!hasHigh || !hasLow) return 0;
-    }
-
-    const componentRoots = new Set(def.pins.map((pin) => uf.find(pinKey(part.id, pin.id))));
-    const totalOhms = sumSeriesResistance(componentRoots);
-
-    return calculateBrightness(totalOhms > 0 ? totalOhms : 220);
-  }
-
-  function isSevenSegmentLitImpl(partId: string, segmentId: string): boolean {
-    const part = parts.find((p) => p.id === partId && p.type === "seven-segment");
-    if (!part) return false;
-
-    const commonType = (part.properties?.commonType as string) ?? "cathode";
-    const commonRoot = uf.find(pinKey(partId, "com1"));
-    const segRoot = uf.find(pinKey(partId, segmentId));
-
-    const commonState = resolveNetState(commonRoot);
-    const segState = resolveNetState(segRoot);
-
-    if (commonType === "cathode") {
-      return commonState === "LOW" && segState === "HIGH";
-    }
-    return commonState === "HIGH" && segState === "LOW";
+    return getComponentModel(part.type)?.getBrightness?.(part, ctx) ?? 0;
   }
 
   function calculateRgbChannelBrightness(partId: string, channel: "red" | "green" | "blue"): number {
     const part = parts.find((p) => p.id === partId);
-    if (!part || part.type !== "rgb-led") return 0;
+    if (!part) return 0;
+    return getComponentModel(part.type)?.getChannelBrightness?.(part, channel, ctx) ?? 0;
+  }
 
-    const channelRoot = uf.find(pinKey(part.id, channel));
-    const gndRoot = uf.find(pinKey(part.id, "gnd"));
-
-    const channelState = resolveNetState(channelRoot);
-    const gndState = resolveNetState(gndRoot);
-
-    if (channelState !== "HIGH" || gndState !== "LOW") {
-      return 0;
-    }
-
-    let totalOhms = 0;
-
-    for (const p of parts) {
-      if (p.type === "resistor") {
-        const r1Root = uf.find(pinKey(p.id, "pin1"));
-        const r2Root = uf.find(pinKey(p.id, "pin2"));
-
-        if (r1Root === channelRoot || r2Root === channelRoot) {
-          const rawRes = p.properties?.resistance;
-          const ohms = typeof rawRes === "number" ? rawRes : parseFloat(String(rawRes)) || 220;
-          totalOhms += ohms;
-        }
-      } else if (p.type === "photoresistor") {
-        const r1Root = uf.find(pinKey(p.id, "pin1"));
-        const r2Root = uf.find(pinKey(p.id, "pin2"));
-        if (r1Root === channelRoot || r2Root === channelRoot) {
-          const lightLevel = (p.properties?.lightLevel as number) ?? 0.5;
-          totalOhms += photoresistorOhms(lightLevel);
-        }
-      }
-    }
-
-    return calculateBrightness(totalOhms > 0 ? totalOhms : 220);
+  function isSevenSegmentLitImpl(partId: string, segmentId: string): boolean {
+    const part = parts.find((p) => p.id === partId);
+    if (!part) return false;
+    return getComponentModel(part.type)?.isSegmentLit?.(part, segmentId, ctx) ?? false;
   }
 
   return {

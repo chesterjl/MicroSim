@@ -56,6 +56,15 @@ export interface SimContext {
   /** Generic per-part-id boolean flag bag, e.g. "relayEnergized" -- avoids the Netlist interface growing a bespoke Set for every new component. */
   setFlag(flagName: string, partId: string): void;
   hasFlag(flagName: string, partId: string): boolean;
+  /**
+   * Sums resistive contributions (resistors, potentiometers, photoresistors,
+   * etc.) whose own pin roots intersect `roots`, by delegating to each
+   * part's seriesResistanceContribution hook. Used by Phase E hooks
+   * (getBrightness / getChannelBrightness) -- meaningful any time after
+   * Phase A `connect` unions have run.
+   */
+  sumSeriesResistance(roots: Set<string>): number;
+
 }
 
 export interface ComponentModel {
@@ -107,4 +116,31 @@ export interface ComponentModel {
 
   /** Used by the generic pass to skip a "dead" source (e.g. a 0V battery). */
   isDeadSource?(part: PartInstance): boolean;
+
+  /**
+   * Phase E -- derived brightness (0..1) for a two-terminal light-emitting
+   * part (e.g. LED). Runs after resolveVoltage; ctx.resolveNetState and
+   * ctx.sumSeriesResistance are both meaningful here. Return 0 if unlit.
+   */
+  getBrightness?(part: PartInstance, ctx: SimContext): number;
+
+  /**
+   * Phase E -- derived brightness (0..1) for one named channel of a
+   * multi-channel light emitter (e.g. an RGB LED's "red"/"green"/"blue" pins).
+   */
+  getChannelBrightness?(part: PartInstance, channel: string, ctx: SimContext): number;
+
+  /**
+   * Phase E -- whether a specific named segment/pin of a display-like part
+   * is currently lit (e.g. a seven-segment display's "seg_a").
+   */
+  isSegmentLit?(part: PartInstance, segmentId: string, ctx: SimContext): boolean;
+
+  /**
+   * Phase E -- ohms this part contributes to a series resistance chain, if
+   * any of its own pins' union-find roots fall inside `roots`. Called by
+   * the generic ctx.sumSeriesResistance() helper -- return 0/undefined if
+   * this part isn't a resistive element on that net.
+   */
+  seriesResistanceContribution?(part: PartInstance, roots: Set<string>, ctx: SimContext): number;
 }

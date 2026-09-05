@@ -1,5 +1,9 @@
 import type { CPU, AVRIOPort } from "avr8js";
-import { useCircuitStore } from "../store/circuitStore";
+import { useCircuitStore } from "../../store/circuitStore";
+import type { ExternalDevice } from "./externalDevice";
+import type { PartInstance } from "../../types/types";
+import type { Netlist } from "../netlist";
+import { getPortAndBit } from "./arduinoPins";
 
 const CPU_HZ = 16_000_000;
 const CYCLES_PER_US = CPU_HZ / 1_000_000; // 16
@@ -69,10 +73,6 @@ function buildNecSegments(rawCode: number): PulseSegment[] {
   return segments;
 }
 
-export interface ExternalDevice {
-  claimedPins: number[];
-  update: (cpu: CPU) => void;
-}
 
 const POLL_INTERVAL_CYCLES = 800; // ~50us at 16MHz -- far faster than a human click
 
@@ -155,4 +155,26 @@ export function createIrReceiverDevice(
       }
     },
   };
+}
+
+export function setupIrReceiverDevices(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  parts: PartInstance[],
+  netlist: Netlist
+): ExternalDevice[] {
+  const devices: ExternalDevice[] = [];
+
+  for (const part of parts) {
+    if (part.type !== "ir-receiver") continue;
+
+    const outPinNum = netlist.getConnectedArduinoPin(part.id, "out");
+    if (outPinNum === null) continue;
+
+    const { port, bit } = getPortAndBit(outPinNum, portB, portD);
+    const powered = netlist.isPowered(part.id);
+    devices.push(createIrReceiverDevice(port, bit, outPinNum, powered));
+  }
+
+  return devices;
 }
