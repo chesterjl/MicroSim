@@ -31,7 +31,7 @@ interface CircuitState {
   pendingWireStart: PinRef | null;
   connectPins: (a: PinRef, b: PinRef) => void;
   draftWaypoints: { x: number; y: number }[];
-
+  
   code: string;
   running: boolean;
   runToken: number;
@@ -105,14 +105,7 @@ interface ExternalDevice {
   update: (cpu: CPU) => void;
 }
 
-function createUltrasonicDevice(
-  portB: AVRIOPort,
-  portD: AVRIOPort,
-  partId: string,
-  trigPin: number,
-  echoPin: number,
-  powered: boolean
-): ExternalDevice {
+function createUltrasonicDevice( portB: AVRIOPort, portD: AVRIOPort, partId: string, trigPin: number, echoPin: number, powered: boolean): ExternalDevice {
   const { port: trigPort, bit: trigBit } = getPortAndBit(trigPin, portB, portD);
   const { port: echoPort, bit: echoBit } = getPortAndBit(echoPin, portB, portD);
 
@@ -279,6 +272,59 @@ function createPassiveBuzzerDevice(
   };
 }
 
+function createKeypadDevice(
+  portB: AVRIOPort,
+  portD: AVRIOPort,
+  keypadId: string,
+  rowPins: (number | null)[],
+  colPins: (number | null)[]
+): ExternalDevice {
+  const rowPorts = rowPins.map((pin) => (pin === null ? null : getPortAndBit(pin, portB, portD)));
+  const colPorts = colPins.map((pin) => (pin === null ? null : getPortAndBit(pin, portB, portD)));
+
+  // Rows are the ones we force LOW/HIGH (they're INPUT_PULLUP from the
+  // sketch's side). Columns are what the CPU itself drives LOW one at a
+  // time during its scan -- we only READ those, never write them.
+  function applyRowStates() {
+    const keypadPart = useCircuitStore.getState().parts.find((p) => p.id === keypadId);
+    const pressedRow = keypadPart?.properties?.pressedRow;
+    const pressedCol = keypadPart?.properties?.pressedCol;
+
+    for (let r = 0; r < rowPorts.length; r++) {
+      const rowPort = rowPorts[r];
+      if (!rowPort) continue;
+
+      let shouldBeLow = false;
+
+      if (typeof pressedRow === "number" && pressedRow === r && typeof pressedCol === "number") {
+        const colPort = colPorts[pressedCol];
+        // Only pull this row low if the CPU is actively driving the
+        // pressed key's column LOW at this exact instant -- matches how
+        // a real switch matrix only connects row<->col while that
+        // column's scan pulse is live.
+        if (colPort && colPort.port.pinState(colPort.bit) === PinState.Low) {
+          shouldBeLow = true;
+        }
+      }
+
+      rowPort.port.setPin(rowPort.bit, !shouldBeLow);
+    }
+  }
+
+  // React the instant a column write happens...
+  for (const colPort of colPorts) {
+    colPort?.port.addListener(applyRowStates);
+  }
+
+  return {
+    claimedPins: [...rowPins, ...colPins].filter((p): p is number => p !== null),
+    // ...and also poll every tick, same reasoning as the IR receiver and
+    // ultrasonic devices: guarantees row state is correct before the very
+    // next instruction reads it, instead of depending on listener timing.
+    update: () => applyRowStates(),
+  };
+}
+
 /**
  * Computes the capacitor's next stored voltage for one animation frame,
  * using a standard RC exponential charge/discharge model:
@@ -361,6 +407,27 @@ function setupExternalDevices(
 
       if (!stepperPart) continue;
       devices.push(createStepperDevice(portB, portD, stepperPart.id, [in1, in2, in3, in4]));
+    }
+
+    if (part.type === "keypad-4x4") {
+      const rowPins: (number | null)[] = [];
+      const colPins: (number | null)[] = [];
+
+      for (let r = 1; r <= 4; r++) {
+        rowPins.push(wiringNetlist.getConnectedArduinoPin(part.id, `row${r}`));
+      }
+      for (let c = 1; c <= 4; c++) {
+        colPins.push(wiringNetlist.getConnectedArduinoPin(part.id, `col${c}`));
+      }
+
+      const hasAnyRow = rowPins.some((p) => p !== null);
+      const hasAnyCol = colPins.some((p) => p !== null);
+
+      if (hasAnyRow && hasAnyCol) {
+        devices.push(createKeypadDevice(portB, portD, part.id, rowPins, colPins));
+      } else {
+        console.warn("[keypad] needs at least one row AND one column wired — device NOT created", { rowPins, colPins });
+      }
     }
   }
 
@@ -662,7 +729,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       if (!get().running || get().runToken !== token) return;
 
       pushLog("[Compilation successful. Initializing AVR CPU...]");
-
+      
       const progmem = new Uint8Array(32768);
       loadHexToProgmem(hex, progmem);
 
@@ -818,21 +885,30 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       const CHUNK_SIZE = 100;
       const FRAME_DT_SECONDS = 1 / 60;
 
+      const DIGITAL_INPUT_RESYNC_INSTRUCTIONS = 10000;
+
       const executeFrame = () => {
         if (!get().running || get().runToken !== token) return;
 
         try {
-          const currentState = get();
-          const activeArduino = currentState.parts.find((p) => p.type === "arduino-uno");
+          const activeArduino = get().parts.find((p) => p.type === "arduino-uno");
 
-          if (activeArduino) {
-            const frameNetlist = buildNetlist(currentState.parts, currentState.wires, currentState.digitalPins, true);
+          const resyncDigitalInputs = (): Netlist | null => {
+            if (!activeArduino) return null;
+            const liveState = get();
+            const liveNetlist = buildNetlist(liveState.parts, liveState.wires, liveState.digitalPins, true);
 
             for (let i = 0; i <= 5; i++) {
-              adc.channelValues[i] = frameNetlist.getAnalogVoltage(activeArduino.id, `a${i}`);
+              adc.channelValues[i] = liveNetlist.getAnalogVoltage(activeArduino.id, `a${i}`);
             }
+            syncSimpleDigitalInputs(liveNetlist, activeArduino.id, cpu, portB, portD, claimedPins);
+            return liveNetlist;
+          };
 
-            syncSimpleDigitalInputs(frameNetlist, activeArduino.id, cpu, portB, portD, claimedPins);
+          const frameNetlist = resyncDigitalInputs();
+
+          if (activeArduino && frameNetlist) {
+            const currentState = get();
 
             for (const part of currentState.parts) {
               if (part.type !== "active-buzzer") continue;
@@ -869,6 +945,8 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
           }
 
           let remaining = instructionsPerFrame;
+          let instructionsSinceResync = 0;
+
           while (remaining > 0) {
             const batch = Math.min(CHUNK_SIZE, remaining);
             for (let i = 0; i < batch; i++) {
@@ -877,6 +955,12 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
               for (const device of externalDevices) device.update(cpu);
             }
             remaining -= batch;
+            instructionsSinceResync += batch;
+
+            if (activeArduino && instructionsSinceResync >= DIGITAL_INPUT_RESYNC_INSTRUCTIONS) {
+              resyncDigitalInputs();
+              instructionsSinceResync = 0;
+            }
           }
         } catch (err) {
           console.error("[executeFrame crashed]", err);

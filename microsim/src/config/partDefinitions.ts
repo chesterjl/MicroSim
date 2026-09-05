@@ -297,10 +297,10 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 30, 
     heightUnits: 10,
     pins: [
-      { id: "gnd", label: "GND", x: -16, y: -2, type: "passive" }, // Shifted from -19
-      { id: "vcc", label: "VCC", x: -16, y: -1, type: "passive" }, // Shifted from -19
-      { id: "sda", label: "SDA", x: -16, y: 0, type: "digital" }, // Shifted from -19
-      { id: "scl", label: "SCL", x: -16, y: 1, type: "digital" }, // Shifted from -19
+      { id: "gnd", label: "GND", x: -16, y: -2, type: "passive" }, 
+      { id: "vcc", label: "VCC", x: -16, y: -1, type: "passive" }, 
+      { id: "sda", label: "SDA", x: -16, y: 0, type: "digital" }, 
+      { id: "scl", label: "SCL", x: -16, y: 1, type: "digital" }, 
     ],
     defaultProperties: { address: 0x27, cols: 16, rows: 2, backlight: true },
   },
@@ -366,14 +366,14 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 12,
     heightUnits: 18,
     pins: [
-      { id: "row1", label: "R1", x: -4, y: 9, type: "digital" },
-      { id: "row2", label: "R2", x: -3, y: 9, type: "digital" },
-      { id: "row3", label: "R3", x: -2, y: 9, type: "digital" },
-      { id: "row4", label: "R4", x: -1, y: 9, type: "digital" },
-      { id: "col1", label: "C1", x: 1, y: 9, type: "digital" },
-      { id: "col2", label: "C2", x: 2, y: 9, type: "digital" },
-      { id: "col3", label: "C3", x: 3, y: 9, type: "digital" },
-      { id: "col4", label: "C4", x: 4, y: 9, type: "digital" },
+      { id: "row1", label: "R1", x: -4, y: 9, type: "passive" },
+      { id: "row2", label: "R2", x: -3, y: 9, type: "passive" },
+      { id: "row3", label: "R3", x: -2, y: 9, type: "passive" },
+      { id: "row4", label: "R4", x: -1, y: 9, type: "passive" },
+      { id: "col1", label: "C1", x: 1, y: 9, type: "passive" },
+      { id: "col2", label: "C2", x: 2, y: 9, type: "passive" },
+      { id: "col3", label: "C3", x: 3, y: 9, type: "passive" },
+      { id: "col4", label: "C4", x: 4, y: 9, type: "passive" },
     ],
     defaultProperties: { pressedRow: null, pressedCol: null },
   },

@@ -114,7 +114,7 @@ export function KeypadPart({ part, selected, pinStates, onPinClick}: KeypadPartP
                 fontWeight={700}
                 fill="#f3f4f6"
                 fontFamily="sans-serif"
-                pointerEvents="none"
+                style={{ pointerEvents: "none" }}
               >
                 {label}
               </text>

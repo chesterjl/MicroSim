@@ -28,7 +28,7 @@ class UnionFind {
     }
     return root;
   }
-
+    
   union(a: string, b: string) {
     const ra = this.find(a);
     const rb = this.find(b);
@@ -275,7 +275,7 @@ export function buildNetlist(
 
     return totalOhms;
   }
-
+  
   function calculatePartBrightness(partId: string): number {
     const part = parts.find((p) => p.id === partId);
     if (!part) return 0;
