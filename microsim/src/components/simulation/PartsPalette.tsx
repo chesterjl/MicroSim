@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useCircuitStore } from "../../store/circuitStore";
-import { GRID } from "../../types/types";
 
 interface PartOption {
   type: string;
@@ -88,10 +86,13 @@ const PART_CATALOG: PartOption[] = [
 
 ];
 
-export function PartsPalette() {
+interface PartsPaletteProps {
+  onAddPart: (type: string) => void;
+}
+
+export function PartsPalette({ onAddPart }: PartsPaletteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const addPart = useCircuitStore((s) => s.addPart);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -106,12 +107,9 @@ export function PartsPalette() {
   }, []);
 
   const handleSelectPart = (type: string) => {
-    const jitterCells = () => Math.floor(Math.random() * 8) * GRID;
-
-    const spawnX = 3700 + jitterCells();
-    const spawnY = 3700 + jitterCells();
-
-    addPart(type, spawnX, spawnY);
+    onAddPart(type);
+    setIsOpen(false);
+    setSearch("");
 
     setIsOpen(false);
     setSearch("");

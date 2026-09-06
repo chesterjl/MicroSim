@@ -31,8 +31,10 @@ function getGlyphRows(code: number, cgram: number[][]): number[] {
 
 export function Lcd16x2I2CPart({ part, selected, pinStates, netlist, onPinClick }: Lcd16x2I2CPartProps) {
   const def = partDefinitions["lcd-16x2-i2c"];
-  const powered = netlist?.isPowered(part.id) ?? false;
-
+  
+  const isRunning = useCircuitStore((s) => s.running);
+  const powered = isRunning && (netlist?.isPowered(part.id) ?? false);
+  
   const screen = useCircuitStore((s) => s.lcdScreens[part.id]);
   const cells = screen?.cells ?? Array.from({ length: ROWS }, () => Array(COLS).fill(0x20));
   const cgram = screen?.cgram ?? Array.from({ length: 8 }, () => Array(8).fill(0));

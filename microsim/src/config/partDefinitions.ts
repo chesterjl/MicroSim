@@ -280,9 +280,9 @@ export const partDefinitions: Record<string, PartDefinition> = {
     widthUnits: 12,
     heightUnits: 20,
     pins: [
-      { id: "signal", label: "SIG", x: -2.5, y: -9.5, type: "digital" },
+      { id: "gnd", label: "GND", x: -2.5, y: -9.5, type: "ground" },
       { id: "vcc", label: "VCC", x: 0, y: -9.5, type: "power" },
-      { id: "gnd", label: "GND", x: 2.5, y: -9.5, type: "ground" },
+      { id: "signal", label: "SIG", x: 2.5, y: -9.5, type: "digital" },
     ],
     defaultProperties: {
       angle: 90,

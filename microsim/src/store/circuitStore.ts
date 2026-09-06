@@ -14,7 +14,7 @@ interface CircuitState {
   pendingWireStart: PinRef | null;
   connectPins: (a: PinRef, b: PinRef) => void;
   draftWaypoints: { x: number; y: number }[];
-  
+
   code: string;
   running: boolean;
   digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>;
@@ -40,6 +40,7 @@ interface CircuitState {
   deleteWire: (id: string) => void;
   removeWiresForPart: (partId: string) => void;
   updateWireColor: (id: string, color: string) => void;
+  shiftWireWaypoints: (partId: string, dx: number, dy: number) => void;
 
   setCode: (code: string) => void;
   runSimulation: () => Promise<void>;
@@ -236,6 +237,20 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
         wires: state.wires.map((w) => (w.id === id ? { ...w, color } : w)),
       })),
 
+    shiftWireWaypoints: (partId, dx, dy) => {
+      if (dx === 0 && dy === 0) return;
+      set((state) => ({
+        wires: state.wires.map((w) => {
+          const touchesPart = w.from.partId === partId || w.to.partId === partId;
+          if (!touchesPart || !w.waypoints || w.waypoints.length === 0) return w;
+          return {
+            ...w,
+            waypoints: w.waypoints.map((wp) => ({ x: wp.x + dx, y: wp.y + dy })),
+          };
+        }),
+      }));
+    },
+
     setCode: (code) => set({ code }),
 
     runSimulation: async () => {
@@ -261,7 +276,13 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
 
     stopSimulation: () => {
       runner.stop();
-      set({ running: false });
+      set({ 
+        running: false,
+        consoleLog: [],
+        lcdScreens: {}, 
+        buzzerStates: {}, 
+        servoAngles: {} 
+      });
     },
   };
 });

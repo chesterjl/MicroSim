@@ -2,12 +2,18 @@ import type { PartInstance, Wire } from "../types/types";
 import { partDefinitions } from "../config/partDefinitions";
 import { getComponentModel } from "./modelRegistry";
 import type { SimContext, DigitalPinState } from "./componentModel";
+import { getResolvedPins } from "./physics/geometry";
 
 export type NetState = "HIGH" | "LOW" | "FLOATING";
 
 export type { DigitalPinState };
 
 export const CAPACITOR_HIGH_THRESHOLD_V = 2;
+
+// Resolve breadboard <-> component contact purely by geometry, every
+// build -- no persistent Wire objects, so it self-corrects the instant
+// a part or breadboard moves.
+const BREADBOARD_CONTACT_EPSILON_PX = 1;
 
 function pinKey(partId: string, pinId: string) {
   return `${partId}::${pinId}`;
@@ -57,37 +63,12 @@ export interface Netlist {
   hasFlag: (flagName: string, partId: string) => boolean;
 }
 
-// NOTE: calculateBrightness and photoresistorOhms used to live here.
-// calculateBrightness moved to ./physics/brightness.ts (shared by any
-// emitter model). photoresistorOhms moved into photoresistor.ts, since
-// it's math specific to that one part.
-
 export function buildNetlist(
   parts: PartInstance[],
   wires: Wire[],
   digitalPins: Record<number, DigitalPinState>,
   isRunning: boolean = false
 ): Netlist {
-  if (!isRunning) {
-    return {
-      getPinState: () => "FLOATING",
-      getPartBrightness: () => 0,
-      getRgbChannelBrightness: () => 0,
-      isSevenSegmentLit: () => false,
-      isRelayEnergized: () => false,
-      isPowered: () => false,
-      isActiveBuzzerSounding: () => false,
-      getAnalogVoltage: () => 0,
-      getConnectedArduinoPin: () => null,
-      arePinsConnected: () => false,
-      getCapacitorStoredVoltage: (partId) => Number(parts.find((p) => p.id === partId)?.properties?.storedVoltage ?? 0),
-      getExternalSupplyVoltage: () => 0,
-      isNetGrounded: () => false,
-      getLoadResistanceOnNet: () => 0,
-      hasFlag: () => false,
-    };
-  }
-
   const uf = new UnionFind();
   const flags = new Map<string, Set<string>>();
 
@@ -119,11 +100,6 @@ export function buildNetlist(
     return 0;
   }
 
-  // Generic series-resistance summation -- delegates to each part's own
-  // ComponentModel instead of hardcoding resistor/potentiometer/
-  // photoresistor here. netlist.ts no longer needs to know which part
-  // types are resistive; it just asks. Exposed on ctx so Phase E hooks
-  // (getBrightness, getChannelBrightness) can call it too.
   function sumSeriesResistance(roots: Set<string>): number {
     let totalOhms = 0;
     for (const p of parts) {
@@ -160,24 +136,76 @@ export function buildNetlist(
     hasFlag: (flagName, partId) => flags.get(flagName)?.has(partId) ?? false,
   };
 
-  // Seed every part's pins into the union-find so isolated parts still
-  // resolve to a stable (self) root.
+  // --- Topology phase: ALWAYS runs, running or paused. ---
+  // Seed every part's pins so isolated parts still resolve to a stable root.
   for (const part of parts) {
     const def = partDefinitions[part.type];
     if (!def) continue;
     for (const pin of def.pins) uf.find(pinKey(part.id, pin.id));
   }
 
+  // User-drawn wires.
   for (const wire of wires) {
     uf.union(pinKey(wire.from.partId, wire.from.pinId), pinKey(wire.to.partId, wire.to.pinId));
   }
 
-  // --- Phase A: pure topology unions ---
+  // Phase A: pure topology unions (resistor shorts, potentiometer wiper
+  // side, pushbutton bridge, etc.) -- these depend only on static part
+  // properties, never on resolved electrical state, so they're safe and
+  // meaningful even when paused.
   for (const part of parts) {
     getComponentModel(part.type)?.connect?.(part, ctx);
   }
 
-  // --- Generic ground/power collection, interleaved with Phase B1 (drive) ---
+  // Breadboard <-> component contact, resolved by geometry every build --
+  // also pure topology, always valid.
+  const breadboards = parts.filter((p) => p.type.startsWith("breadboard"));
+  if (breadboards.length > 0) {
+    const breadboardPins = breadboards.flatMap((bb) =>
+      getResolvedPins(bb).map((p) => ({ ...p, bbPartId: bb.id }))
+    );
+    for (const part of parts) {
+      if (part.type.startsWith("breadboard")) continue;
+      for (const pin of getResolvedPins(part)) {
+        for (const bbPin of breadboardPins) {
+          if (Math.hypot(bbPin.x - pin.x, bbPin.y - pin.y) < BREADBOARD_CONTACT_EPSILON_PX) {
+            uf.union(pinKey(part.id, pin.pinId), pinKey(bbPin.bbPartId, bbPin.pinId));
+          }
+        }
+      }
+    }
+  }
+
+  const arePinsConnectedImpl = (partIdA: string, pinIdA: string, partIdB: string, pinIdB: string) =>
+    uf.find(pinKey(partIdA, pinIdA)) === uf.find(pinKey(partIdB, pinIdB));
+
+  if (!isRunning) {
+    // Paused: topology above is fully valid and queryable. Everything
+    // electrical (voltages, HIGH/LOW, brightness, power) resolves to a
+    // safe, inert default instead of running the drive/power/voltage
+    // phases below.
+    return {
+      getPinState: () => "FLOATING",
+      getPartBrightness: () => 0,
+      getRgbChannelBrightness: () => 0,
+      isSevenSegmentLit: () => false,
+      isRelayEnergized: () => false,
+      isPowered: () => false,
+      isActiveBuzzerSounding: () => false,
+      getAnalogVoltage: () => 0,
+      getConnectedArduinoPin: () => null,
+      arePinsConnected: arePinsConnectedImpl,
+      getCapacitorStoredVoltage: (partId) => Number(parts.find((p) => p.id === partId)?.properties?.storedVoltage ?? 0),
+      getExternalSupplyVoltage: () => 0,
+      isNetGrounded: () => false,
+      getLoadResistanceOnNet: (partId, pinId) => sumSeriesResistance(new Set([uf.find(pinKey(partId, pinId))])),
+      hasFlag: () => false,
+    };
+  }
+
+  // --- Everything below is unchanged, and only runs while isRunning. ---
+
+  // Generic ground/power collection, interleaved with Phase B1 (drive)
   for (const part of parts) {
     const def = partDefinitions[part.type];
     if (!def) continue;
@@ -200,23 +228,20 @@ export function buildNetlist(
     model?.drive?.(part, ctx);
   }
 
-  // --- Phase B2 ---
   for (const part of parts) {
     getComponentModel(part.type)?.driveAfterPower?.(part, ctx);
   }
 
-  // --- Phase C: postResolve ---
   for (const part of parts) {
     getComponentModel(part.type)?.postResolve?.(part, ctx);
   }
-  
+
   function isPartPowered(partId: string): boolean {
     const vccRoot = uf.find(pinKey(partId, "vcc"));
     const gndRoot = uf.find(pinKey(partId, "gnd"));
     return netPower.has(vccRoot) && netGround.has(gndRoot);
   }
 
-  // --- Phase D: resolveVoltage ---
   for (const part of parts) {
     getComponentModel(part.type)?.resolveVoltage?.(part, ctx);
   }
@@ -232,9 +257,6 @@ export function buildNetlist(
     return null;
   }
 
-  // --- Phase E: derived behavior queries -- brightness, lit-state, RGB
-  // channels. Fully delegated to each part's ComponentModel; netlist.ts
-  // no longer contains a single part.type === "..." check in this section. ---
   function calculatePartBrightness(partId: string): number {
     const part = parts.find((p) => p.id === partId);
     if (!part) return 0;
@@ -263,7 +285,7 @@ export function buildNetlist(
     isActiveBuzzerSounding: (partId) => ctx.hasFlag("activeBuzzerSounding", partId),
     getAnalogVoltage: (partId, pinId) => resolveNetVoltage(uf.find(pinKey(partId, pinId))),
     getConnectedArduinoPin: (partId, pinId) => getConnectedArduinoPinImpl(partId, pinId),
-    arePinsConnected: (partIdA, pinIdA, partIdB, pinIdB) => uf.find(pinKey(partIdA, pinIdA)) === uf.find(pinKey(partIdB, pinIdB)),
+    arePinsConnected: arePinsConnectedImpl,
 
     getCapacitorStoredVoltage: (partId) => Number(parts.find((p) => p.id === partId)?.properties?.storedVoltage ?? 0),
     getExternalSupplyVoltage: (partId, pinId) => {

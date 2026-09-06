@@ -32,7 +32,6 @@ export interface CircuitSnapshot {
  * Everything the runner needs from the outside world, and everything it
  * reports back. It never touches Zustand directly -- the store wires these
  * up to `set`/`get` so this file stays reusable (e.g. inside a worker later)
- * without dragging React/Zustand along with it.
  */
 export interface AVRRunnerCallbacks {
   /** Live circuit snapshot -- called every resync, so it must reflect current store state. */
@@ -48,7 +47,7 @@ export interface AVRRunnerCallbacks {
   onServoAngleChange: (partId: string, angle: number) => void;
   onStepperAngleChange: (partId: string, angle: number) => void;
   onCapacitorVoltageChange: (partId: string, voltage: number) => void;
-
+    
   /** Sketch failed to compile, or setup blew up before the sim loop started. */
   onCompileError: (message: string) => void;
   /** The sim loop itself threw mid-run. */
@@ -62,9 +61,8 @@ const FRAME_DT_SECONDS = 1 / FRAMES_PER_SECOND;
 const CHUNK_SIZE = 100;
 const DIGITAL_INPUT_RESYNC_INSTRUCTIONS = 10_000;
 
-/** Forces external circuit state into any Arduino pin currently configured
- * as INPUT that isn't already claimed by an ExternalDevice -- see the
- * original comment in circuitStore.ts for the full rationale. */
+/* Forces external circuit state into any Arduino pin currently configured
+   as INPUT that isn't already claimed by an ExternalDevice */
 function syncSimpleDigitalInputs(
   netlist: Netlist,
   arduinoId: string,

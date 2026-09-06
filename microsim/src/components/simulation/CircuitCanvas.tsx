@@ -4,11 +4,9 @@ import { buildNetlist } from "../../engine/netlist";
 import { getResolvedPins, snapToGrid } from "../../engine/physics/geometry";
 import { WireLayer } from "../parts/wire/WireLayer";
 import { partDefinitions } from "../../config/partDefinitions";
-import { GRID, type PartInstance, type PinRef } from "../../types/types";
+import { GRID, type PartInstance } from "../../types/types";
 import { partComponentRegistry } from "../../parts/partRegistry";
-
-const WORLD_WIDTH = 7000;
-const WORLD_HEIGHT = 7000;
+import { WORLD_HEIGHT, WORLD_WIDTH, ZOOM_RENDER_FACTOR } from "../../constants/constant";
 
 const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized"];
 
@@ -22,6 +20,12 @@ interface DragState {
   partId: string;
   offsetX: number;
   offsetY: number;
+  // FIX (bug 2): captured once, at the moment the drag starts -- tells us
+  // whether this part was ALREADY sitting on a breadboard hole before this
+  // drag began. If it was, we skip re-snapping on mouseup, so dragging a
+  // part off a breadboard (or dragging something like the Arduino across
+  // one) no longer gets yanked back into alignment every time you let go.
+  wasNearBreadboard: boolean;
 }
 
 interface CircuitCanvasProps {
@@ -30,6 +34,7 @@ interface CircuitCanvasProps {
   setPanOffset: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
   isSimulating: boolean;
   onOpenProperties: (part: PartInstance) => void;
+  setZoomLevel: React.Dispatch<React.SetStateAction<number>>;
 }
 
 interface PartControlOverlayProps {
@@ -39,7 +44,7 @@ interface PartControlOverlayProps {
   onOpenProperties: () => void;
 }
 
-export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating, onOpenProperties }: CircuitCanvasProps) {
+export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating, onOpenProperties, setZoomLevel }: CircuitCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const worldGroupRef = useRef<SVGGElement>(null);
@@ -50,7 +55,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   const selectedPartId = useCircuitStore((s) => s.selectedPartId);
   const pendingWireStart = useCircuitStore((s) => s.pendingWireStart);
   const draftWaypoints = useCircuitStore((s) => s.draftWaypoints);
-  
+
   const movePart = useCircuitStore((s) => s.movePart);
   const selectPart = useCircuitStore((s) => s.selectPart);
   const deletePart = useCircuitStore((s) => s.deletePart);
@@ -61,15 +66,14 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   const deleteWire = useCircuitStore((s) => s.deleteWire);
   const togglePushbutton = useCircuitStore((s) => s.togglePushbutton);
   const toggleSwitch = useCircuitStore((s) => s.toggleSwitch);
-  const connectPins = useCircuitStore((s) => s.connectPins);
-  const removeWiresForPart = useCircuitStore((s) => s.removeWiresForPart);
+  const shiftWireWaypoints = useCircuitStore((s) => s.shiftWireWaypoints);
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const effectiveZoom = zoomLevel * 0.9625;
+  const effectiveZoom = zoomLevel * ZOOM_RENDER_FACTOR;
 
   const netlist = useMemo(
     () => buildNetlist(parts, wires, digitalPins, isSimulating),
@@ -99,25 +103,18 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedPartId, deletePart, pendingWireStart, cancelWire, isSimulating]);
 
-
   useEffect(() => {
     if (isSimulating && pendingWireStart) {
       cancelWire();
     }
   }, [isSimulating, pendingWireStart, cancelWire]);
 
- function toSvgPoint(e: React.MouseEvent | MouseEvent) {
+  function toSvgPoint(e: React.MouseEvent | MouseEvent) {
     const worldGroup = worldGroupRef.current;
-
-    if (!worldGroup) {
-      return { x: 0, y: 0 };
-    }
+    if (!worldGroup) return { x: 0, y: 0 };
 
     const matrix = worldGroup.getScreenCTM();
-
-    if (!matrix) {
-      return { x: 0, y: 0 };
-    }
+    if (!matrix) return { x: 0, y: 0 };
 
     const point = new DOMPoint(e.clientX, e.clientY);
     const localPoint = point.matrixTransform(matrix.inverse());
@@ -128,6 +125,28 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     };
   }
 
+  // --- FIX (bug 2 helper): pure geometry check, no side effects. Used both
+  // to capture "was this part already on a breadboard" at drag-start, and
+  // inside trySnapToBreadboard itself. ---
+  function findNearestBreadboardPin(part: PartInstance) {
+    const breadboards = parts.filter((p) => isBreadboard(p.type));
+    if (breadboards.length === 0) return null;
+
+    const breadboardPins = breadboards.flatMap((bb) => getResolvedPins(bb));
+    const partPins = getResolvedPins(part);
+
+    let best: { pin: (typeof partPins)[number]; target: (typeof breadboardPins)[number]; dist: number } | null = null;
+    for (const pin of partPins) {
+      for (const target of breadboardPins) {
+        const dist = Math.hypot(target.x - pin.x, target.y - pin.y);
+        if (dist <= SNAP_DISTANCE && (!best || dist < best.dist)) {
+          best = { pin, target, dist };
+        }
+      }
+    }
+    return best;
+  }
+
   function handlePartMouseDown(e: React.MouseEvent, partId: string) {
     if (pendingWireStart) return;
     e.stopPropagation();
@@ -136,18 +155,17 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     selectPart(partId);
 
     const part = parts.find((p) => p.id === partId);
-    if (!part) return;  
+    if (!part) return;
 
-    // Prevent dragging pushbuttons during simulation so mouse clicks only operate the button
     if (isSimulating && part.type === "pushbutton") return;
     if (isSimulating) return;
-    
-    if (!isBreadboard(part.type)) {
-      removeWiresForPart(partId);
-    }
+
+    // FIX (bug 2): snapshot whether this part is already sitting on a
+    // breadboard hole BEFORE this drag moves anything.
+    const wasNearBreadboard = !isBreadboard(part.type) && findNearestBreadboardPin(part) !== null;
 
     const point = toSvgPoint(e);
-    setDrag({ partId, offsetX: point.x - part.x, offsetY: point.y - part.y });
+    setDrag({ partId, offsetX: point.x - part.x, offsetY: point.y - part.y, wasNearBreadboard });
   }
 
   function handleCanvasMouseDown(e: React.MouseEvent) {
@@ -157,7 +175,13 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     }
   }
 
-  function handleMouseMove(e: React.MouseEvent) {
+  // FIX (bug 1): this now runs UNCONDITIONALLY on every mouse move over the
+  // window (see the effect below), not just while drag/pan is active. That's
+  // what keeps `cursor` live while the user is mid-wire (pendingWireStart
+  // set, but drag/isPanning both false) -- previously cursor froze the
+  // instant the user wasn't also dragging a part, which is why wires either
+  // didn't appear or snapped to a stale, far-away cursor position.
+  function handleMouseMove(e: React.MouseEvent | MouseEvent) {
     const point = toSvgPoint(e);
     setCursor(point);
 
@@ -167,8 +191,6 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
 
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-
-        // Calculate maximum pan offsets to prevent dragging past grid edges
         const maxPanX = Math.max(0, (WORLD_WIDTH * effectiveZoom - width) / 2);
         const maxPanY = Math.max(0, (WORLD_HEIGHT * effectiveZoom - height) / 2);
 
@@ -184,41 +206,33 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       const rawX = point.x - drag.offsetX;
       const rawY = point.y - drag.offsetY;
 
-      // Restrict component movement within grid bounds (50px inner padding)
       const clampedX = Math.min(Math.max(rawX, 50), WORLD_WIDTH - 50);
       const clampedY = Math.min(Math.max(rawY, 50), WORLD_HEIGHT - 50);
 
-      movePart(drag.partId, snapToGrid(clampedX), snapToGrid(clampedY));
-    }
-  }
+      const snappedX = snapToGrid(clampedX);
+      const snappedY = snapToGrid(clampedY);
 
-  function wireExists(a: PinRef, b: PinRef) {
-    return wires.some(
-      (w) =>
-        (w.from.partId === a.partId && w.from.pinId === a.pinId && w.to.partId === b.partId && w.to.pinId === b.pinId) ||
-        (w.from.partId === b.partId && w.from.pinId === b.pinId && w.to.partId === a.partId && w.to.pinId === a.pinId)
-    );
+      // Requirement 3: shift this part's connected wires' custom waypoints by
+      // the same delta the part is about to move, so bends travel WITH the
+      // part instead of staying pinned to their old absolute position.
+      const draggedPart = parts.find((p) => p.id === drag.partId);
+      if (draggedPart) {
+        const dx = snappedX - draggedPart.x;
+        const dy = snappedY - draggedPart.y;
+        if (dx !== 0 || dy !== 0) {
+          shiftWireWaypoints(drag.partId, dx, dy);
+        }
+      }
+
+      movePart(drag.partId, snappedX, snappedY);
+    }
   }
 
   function trySnapToBreadboard(partId: string) {
     const part = parts.find((p) => p.id === partId);
     if (!part || isBreadboard(part.type)) return;
 
-    const breadboards = parts.filter((p) => isBreadboard(p.type));
-    if (breadboards.length === 0) return;
-
-    const breadboardPins = breadboards.flatMap((bb) => getResolvedPins(bb));
-    const partPins = getResolvedPins(part);
-
-    let best: { pin: (typeof partPins)[number]; target: (typeof breadboardPins)[number]; dist: number } | null = null;
-    for (const pin of partPins) {
-      for (const target of breadboardPins) {
-        const dist = Math.hypot(target.x - pin.x, target.y - pin.y);
-        if (dist <= SNAP_DISTANCE && (!best || dist < best.dist)) {
-          best = { pin, target, dist };
-        }
-      }
-    }
+    const best = findNearestBreadboardPin(part);
     if (!best) return;
 
     const dx = best.target.x - best.pin.x;
@@ -227,20 +241,17 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     const newY = snapToGrid(part.y + dy);
     movePart(part.id, newX, newY);
 
-    const snappedPins = getResolvedPins({ ...part, x: newX, y: newY });
-    for (const pin of snappedPins) {
-      for (const target of breadboardPins) {
-        if (Math.hypot(target.x - pin.x, target.y - pin.y) < 1) {
-          const a: PinRef = { partId: part.id, pinId: pin.pinId };
-          const b: PinRef = { partId: target.partId, pinId: target.pinId };
-          if (!wireExists(a, b)) connectPins(a, b);
-        }
-      }
-    }
+    // NOTE: no wire creation here on purpose -- breadboard contact is
+    // resolved dynamically by geometry inside netlist.ts, not by persisted
+    // Wire records. That's what stops "ghost wires" when the breadboard
+    // itself gets dragged away later.
   }
 
+  // FIX (bug 2 + bug 3): mouseup only re-snaps if the part WASN'T already
+  // on a breadboard when this drag started. And it no longer depends on
+  // firing from a container mouseleave -- see the window-level effect below.
   function handleMouseUp() {
-    if (drag && !isSimulating) {
+    if (drag && !isSimulating && !drag.wasNearBreadboard) {
       trySnapToBreadboard(drag.partId);
     }
     setDrag(null);
@@ -249,7 +260,6 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
 
   function handlePinClick(e: React.MouseEvent, partId: string, pinId: string) {
     e.stopPropagation();
-
     if (isSimulating) return;
 
     if (pendingWireStart) {
@@ -283,6 +293,71 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     }
   }
 
+  // FIX (bug 1 + bug 3): mousemove/mouseup are tracked on `window`,
+  // unconditionally, for the component's whole lifetime -- not gated behind
+  // `drag || isPanning`, and not duplicated on the container. This means:
+  //   - wire-drafting cursor tracking works even when nothing is being
+  //     dragged (fixes bug 1)
+  //   - dragging survives the pointer leaving the container's bounding box
+  //     (e.g. DevTools docking/resizing the viewport mid-drag), because we
+  //     never relied on the container itself receiving the event (fixes
+  //     bug 3's root cause)
+  // The container no longer has onMouseMove / onMouseUp / onMouseLeave at
+  // all -- see the JSX below. In particular onMouseLeave is gone entirely:
+  // it was the thing silently cancelling drags whenever DevTools caused a
+  // mouseleave on the canvas, even while the mouse button was still held.
+  useEffect(() => {
+    function onWindowMove(e: MouseEvent) {
+      handleMouseMove(e);
+    }
+    function onWindowUp() {
+      handleMouseUp();
+    }
+
+    window.addEventListener("mousemove", onWindowMove);
+    window.addEventListener("mouseup", onWindowUp);
+    return () => {
+      window.removeEventListener("mousemove", onWindowMove);
+      window.removeEventListener("mouseup", onWindowUp);
+    };
+    // Intentionally re-subscribing every render: handleMouseMove/handleMouseUp
+    // close over `drag`, `isPanning`, `panStart`, etc., so the listener must
+    // always be the freshest version of these closures.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function handleWheel(e: WheelEvent) {
+      if (!container) return;
+
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left - rect.width / 2;
+      const cursorY = e.clientY - rect.top - rect.height / 2;
+
+      setZoomLevel((prevZoom) => {
+        const ZOOM_INTENSITY = 0.0016;
+        const nextZoom = Math.min(Math.max(prevZoom * Math.exp(-e.deltaY * ZOOM_INTENSITY), 0.2), 3.0);
+
+        setPanOffset((prevPan) => {
+          const ratio = nextZoom / prevZoom;
+          return {
+            x: cursorX - (cursorX - prevPan.x) * ratio,
+            y: cursorY - (cursorY - prevPan.y) * ratio,
+          };
+        });
+
+        return nextZoom;
+      });
+    }
+
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
+  }, [setZoomLevel, setPanOffset]);
+
   const selectedPart = parts.find((p) => p.id === selectedPartId);
 
   let canvasCursor = "grab";
@@ -310,7 +385,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   function renderPart(part: PartInstance) {
     const Component = partComponentRegistry[part.type];
     if (!Component) return null;
-    
+
     const def = partDefinitions[part.type];
     const pinStates: Record<string, ReturnType<typeof netlist.getPinState>> = {};
     if (def) {
@@ -352,16 +427,11 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       className="w-full h-full select-none overflow-hidden relative bg-[#161616]"
       style={{ cursor: canvasCursor }}
       onMouseDown={handleCanvasMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
       onContextMenu={handleContextMenu}
+      // NOTE: onMouseMove / onMouseUp / onMouseLeave intentionally removed
+      // from this element -- all tracked on window now (see effect above).
     >
-      <svg
-        ref={svgRef}
-        className="w-full h-full overflow-hidden block"
-        onClick={handleBackgroundClick}
-      >
+      <svg ref={svgRef} className="w-full h-full overflow-hidden block" onClick={handleBackgroundClick}>
         <defs>
           <pattern id="grid-dots" width="20" height="20" patternUnits="userSpaceOnUse">
             <circle cx="2" cy="2" r="1" fill="#2a2a2a" />
@@ -369,13 +439,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
         </defs>
 
         <g ref={worldGroupRef} transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${effectiveZoom})`}>
-          <rect
-            x={-WORLD_WIDTH / 2}
-            y={-WORLD_HEIGHT / 2}
-            width={WORLD_WIDTH}
-            height={WORLD_HEIGHT}
-            fill="url(#grid-dots)"
-          />
+          <rect x={-WORLD_WIDTH / 2} y={-WORLD_HEIGHT / 2} width={WORLD_WIDTH} height={WORLD_HEIGHT} fill="url(#grid-dots)" />
 
           <g transform={`translate(${-WORLD_WIDTH / 2}, ${-WORLD_HEIGHT / 2})`}>
             {breadboardParts.map(renderPart)}
@@ -413,15 +477,12 @@ function PartControlOverlay({ part, isSimulating, onDelete, onOpenProperties }: 
 
   const cx = part.x;
   const cy = part.y - (def.heightUnits / 2) * GRID - 20;
-
   const hasProperties = HAS_MODAL_PROPERTIES_PART.includes(part.type);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-
     if (isSimulating) return;
-
     onDelete();
   };
 
@@ -432,36 +493,12 @@ function PartControlOverlay({ part, isSimulating, onDelete, onOpenProperties }: 
   };
 
   return (
-    <g
-      transform={`translate(${cx}, ${cy})`}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
+    <g transform={`translate(${cx}, ${cy})`} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       <g className="hover:opacity-80 transition-opacity" onMouseDown={handleDelete} onClick={handleDelete}>
         <circle cx={hasProperties ? -14 : 0} cy={0} r={12} fill={isSimulating ? "#52525b" : "#dc2626"} stroke="#ffffff" strokeWidth={1.5} />
-        <line
-          x1={(hasProperties ? -14 : 0) - 4}
-          y1={-4}
-          x2={(hasProperties ? -14 : 0) + 4}
-          y2={4}
-          stroke="#ffffff"
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
-        <line
-          x1={(hasProperties ? -14 : 0) + 4}
-          y1={-4}
-          x2={(hasProperties ? -14 : 0) - 4}
-          y2={4}
-          stroke="#ffffff"
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
-        <title>
-          {isSimulating
-            ? "Cannot delete while simulation is running"
-            : "Delete part"}
-        </title>
+        <line x1={(hasProperties ? -14 : 0) - 4} y1={-4} x2={(hasProperties ? -14 : 0) + 4} y2={4} stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
+        <line x1={(hasProperties ? -14 : 0) + 4} y1={-4} x2={(hasProperties ? -14 : 0) - 4} y2={4} stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
+        <title>{isSimulating ? "Cannot delete while simulation is running" : "Delete part"}</title>
       </g>
 
       {hasProperties && (

@@ -63,7 +63,7 @@ export function buildExternalDevices(ctx: DeviceSetupContext): BuildDevicesResul
       )
     );
   }
-
+  
   // General External Devices
   externalDevices.push(...setupHcsr04Devices(ctx.portB, ctx.portD, ctx.parts, wiringNetlist));
   externalDevices.push(

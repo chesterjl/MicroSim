@@ -30,7 +30,9 @@ function getGlyphRows(code: number, cgram: number[][]): number[] {
 
 export function Lcd20x4I2CPart({ part, selected, pinStates, netlist, onPinClick }: Lcd20x4I2CPartProps) {
   const def = partDefinitions["lcd-20x4-i2c"];
-  const powered = netlist?.isPowered(part.id) ?? false;
+
+  const isRunning = useCircuitStore((s) => s.running);
+  const powered = isRunning && (netlist?.isPowered(part.id) ?? false);
 
   const screen = useCircuitStore((s) => s.lcdScreens[part.id]);
   const cells = screen?.cells ?? Array.from({ length: ROWS }, () => Array(COLS).fill(0x20));

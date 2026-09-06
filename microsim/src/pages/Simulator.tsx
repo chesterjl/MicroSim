@@ -2,12 +2,19 @@ import { useEffect, useState, useRef } from "react";
 import { useCircuitStore } from "../store/circuitStore";
 import { CodeEditor } from "../components/simulation/CodeEditor";
 import { CircuitCanvas } from "../components/simulation/CircuitCanvas";
-import type { PartInstance } from "../types/types";
+import { GRID, type PartInstance } from "../types/types";
 import { PartsPalette } from "../components/simulation/PartsPalette";
 import { ComponentPropertiesModal } from "../components/common/ComponentPropertiesModal";
 import SimulationNavbar, { type ViewMode } from "../components/common/SimulationNavbar";
+import { WORLD_HEIGHT, WORLD_WIDTH, ZOOM_RENDER_FACTOR } from "../constants/constant";
+import { snapToGrid } from "../engine/physics/geometry";
 
 export default function Simulator({ onBackToHome }: { onBackToHome: () => void }) {
+  const hasInitializedArduino = useRef(false);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const spawnCounter = useRef(0);
+
+
   const parts = useCircuitStore((s) => s.parts);
   const addPart = useCircuitStore((s) => s.addPart);
   const running = useCircuitStore((s) => s.running);
@@ -17,7 +24,20 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
   const [activePropertyPart, setActivePropertyPart] = useState<PartInstance | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
 
-  const hasInitializedArduino = useRef(false);
+  const handleAddPart = (type: string) => {
+    const rect = canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const effectiveZoom = zoomLevel * ZOOM_RENDER_FACTOR;
+    const centerWorldX = (rect.width / 2 - panOffset.x) / effectiveZoom + WORLD_WIDTH / 2;
+    const centerWorldY = (rect.height / 2 - panOffset.y) / effectiveZoom + WORLD_HEIGHT / 2;
+
+    spawnCounter.current += 1;
+    const jitterX = ((spawnCounter.current * 3) % 8) * GRID; // small spiral-ish spread
+    const jitterY = ((spawnCounter.current * 5) % 8) * GRID;
+
+    addPart(type, snapToGrid(centerWorldX + jitterX), snapToGrid(centerWorldY + jitterY));
+  };
 
   useEffect(() => {
     if (!hasInitializedArduino.current) {
@@ -70,17 +90,19 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
 
             {!running && (
               <div className="absolute top-4 left-4 z-20">
-                <PartsPalette />
+                <PartsPalette onAddPart={handleAddPart} />
               </div>
             )}
 
-            <div className="flex-1 min-h-0 w-full h-full relative overflow-hidden">
+            <div ref={canvasContainerRef} className="flex-1 min-h-0 w-full h-full relative overflow-hidden">
               <CircuitCanvas
                 zoomLevel={zoomLevel}
                 panOffset={panOffset}
                 setPanOffset={setPanOffset}
                 isSimulating={running}
                 onOpenProperties={(part) => setActivePropertyPart(part)}
+                setZoomLevel={setZoomLevel}
+
               />
             </div>
           </div>
