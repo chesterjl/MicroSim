@@ -26,6 +26,11 @@ interface DragState {
   // part off a breadboard (or dragging something like the Arduino across
   // one) no longer gets yanked back into alignment every time you let go.
   wasNearBreadboard: boolean;
+  // NEW: when the part being dragged IS a breadboard, this holds every
+  // other part currently seated on one of its holes at drag-start. Each
+  // frame the breadboard moves, these ride along by the same delta so
+  // they never lose contact.
+  riderPartIds: string[];
 }
 
 interface CircuitCanvasProps {
@@ -147,6 +152,19 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     return best;
   }
 
+  const SEATED_EPSILON_PX = 1;
+  function findSeatedPartIds(breadboard: PartInstance): string[] {
+    const breadboardPins = getResolvedPins(breadboard);
+
+    return parts
+      .filter((p) => !isBreadboard(p.type))
+      .filter((p) =>
+        getResolvedPins(p).some((pin) =>
+          breadboardPins.some((bbPin) => Math.hypot(bbPin.x - pin.x, bbPin.y - pin.y) < SEATED_EPSILON_PX)
+        )
+      )
+      .map((p) => p.id);
+  }
   function handlePartMouseDown(e: React.MouseEvent, partId: string) {
     if (pendingWireStart) return;
     e.stopPropagation();
@@ -160,14 +178,16 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     if (isSimulating && part.type === "pushbutton") return;
     if (isSimulating) return;
 
-    // FIX (bug 2): snapshot whether this part is already sitting on a
-    // breadboard hole BEFORE this drag moves anything.
     const wasNearBreadboard = !isBreadboard(part.type) && findNearestBreadboardPin(part) !== null;
 
-    const point = toSvgPoint(e);
-    setDrag({ partId, offsetX: point.x - part.x, offsetY: point.y - part.y, wasNearBreadboard });
-  }
+    // NEW: if we're grabbing a breadboard, snapshot everyone currently
+    // seated on it so they can be dragged along with it.
+    const riderPartIds = isBreadboard(part.type) ? findSeatedPartIds(part) : [];
 
+    const point = toSvgPoint(e);
+    setDrag({ partId, offsetX: point.x - part.x, offsetY: point.y - part.y, wasNearBreadboard, riderPartIds });
+  }
+  
   function handleCanvasMouseDown(e: React.MouseEvent) {
     if (e.button === 1 || (e.button === 0 && !drag && !pendingWireStart)) {
       setIsPanning(true);
@@ -201,7 +221,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       setPanOffset({ x: newX, y: newY });
       return;
     }
-
+    
     if (drag && !isSimulating) {
       const rawX = point.x - drag.offsetX;
       const rawY = point.y - drag.offsetY;
@@ -212,15 +232,24 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       const snappedX = snapToGrid(clampedX);
       const snappedY = snapToGrid(clampedY);
 
-      // Requirement 3: shift this part's connected wires' custom waypoints by
-      // the same delta the part is about to move, so bends travel WITH the
-      // part instead of staying pinned to their old absolute position.
       const draggedPart = parts.find((p) => p.id === drag.partId);
       if (draggedPart) {
         const dx = snappedX - draggedPart.x;
         const dy = snappedY - draggedPart.y;
+
         if (dx !== 0 || dy !== 0) {
           shiftWireWaypoints(drag.partId, dx, dy);
+
+          // NEW: carry every rider along by the identical delta -- their
+          // offset relative to the breadboard never changes, so they stay
+          // seated on the exact same holes no matter how far the breadboard
+          // travels.
+          for (const riderId of drag.riderPartIds) {
+            const rider = parts.find((p) => p.id === riderId);
+            if (!rider) continue;
+            movePart(riderId, rider.x + dx, rider.y + dy);
+            shiftWireWaypoints(riderId, dx, dy);
+          }
         }
       }
 
@@ -233,6 +262,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     if (!part || isBreadboard(part.type)) return;
 
     const best = findNearestBreadboardPin(part);
+
     if (!best) return;
 
     const dx = best.target.x - best.pin.x;
