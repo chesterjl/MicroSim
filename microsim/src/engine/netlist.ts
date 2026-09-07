@@ -3,6 +3,7 @@ import { partDefinitions } from "../config/partDefinitions";
 import { getComponentModel } from "./modelRegistry";
 import type { SimContext, DigitalPinState } from "./componentModel";
 import { getResolvedPins } from "./physics/geometry";
+import type { OhmsLawReading } from "./physics/ohmsLaw";
 
 export type NetState = "HIGH" | "LOW" | "FLOATING";
 
@@ -58,11 +59,10 @@ export interface Netlist {
   getExternalSupplyVoltage: (partId: string, pinId: string) => number;
   isNetGrounded: (partId: string, pinId: string) => boolean;
   getLoadResistanceOnNet: (partId: string, pinId: string) => number;
-
+  getElectricalReading: (partId: string) => OhmsLawReading | null;
   /** Generic passthrough to whatever a ComponentModel set via ctx.setFlag() -- e.g. "ledReversed", "passiveBuzzerReady", "motorRunningForward". See each model's file for the flag names it sets. */
   hasFlag: (flagName: string, partId: string) => boolean;
 }
-
 export function buildNetlist(
   parts: PartInstance[],
   wires: Wire[],
@@ -70,6 +70,7 @@ export function buildNetlist(
   isRunning: boolean = false
 ): Netlist {
   const uf = new UnionFind();
+  const electricalReadings = new Map<string, OhmsLawReading>();
   const flags = new Map<string, Set<string>>();
 
   const netGround = new Set<string>();
@@ -133,6 +134,8 @@ export function buildNetlist(
       if (!flags.has(flagName)) flags.set(flagName, new Set());
       flags.get(flagName)!.add(partId);
     },
+    setElectricalReading: (partId, reading) => electricalReadings.set(partId, reading),
+    getElectricalReading: (partId) => electricalReadings.get(partId) ?? null,
     hasFlag: (flagName, partId) => flags.get(flagName)?.has(partId) ?? false,
   };
 
@@ -199,6 +202,7 @@ export function buildNetlist(
       getExternalSupplyVoltage: () => 0,
       isNetGrounded: () => false,
       getLoadResistanceOnNet: (partId, pinId) => sumSeriesResistance(new Set([uf.find(pinKey(partId, pinId))])),
+      getElectricalReading: () => null,
       hasFlag: () => false,
     };
   }
@@ -300,7 +304,7 @@ export function buildNetlist(
       const root = uf.find(pinKey(partId, pinId));
       return sumSeriesResistance(new Set([root]));
     },
-
+    getElectricalReading: (partId) => ctx.getElectricalReading(partId),
     hasFlag: (flagName, partId) => ctx.hasFlag(flagName, partId),
   };
 }

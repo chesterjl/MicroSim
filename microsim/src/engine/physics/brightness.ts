@@ -1,8 +1,9 @@
 /**
- * Maps total series resistance (ohms) to a 0..1 brightness value for
- * light-emitting parts (LED, RGB LED channels). Shared so every emitter
- * model computes brightness the same way instead of re-deriving its own
- * curve.
+ * Maps total series resistance (ohms) to a 0..1 brightness value. Kept
+ * for any future non-current-based component that only has a resistance
+ * value to work with -- LED/RGB-LED brightness now goes through the
+ * current-based curve in ohmsLaw.ts instead, since that's physically
+ * accurate rather than an ohms-only heuristic.
  */
 export function calculateBrightness(totalOhms: number): number {
   if (totalOhms <= 0) return 1.0;

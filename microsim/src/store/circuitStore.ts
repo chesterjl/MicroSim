@@ -6,6 +6,7 @@ import { DEFAULT_SKETCH } from "../constants/constant";
 import { IR_BUTTON_CODES } from "../engine/device/irReceiverDevice";
 import { removeBuzzerVoice } from "../engine/device/buzzerVoice";
 import { AVRRunner, type LcdScreenState, type BuzzerState } from "../engine/avrRunner";
+import type { DigitalPinState } from "../engine/componentModel";
 
 interface CircuitState {
   parts: PartInstance[];
@@ -17,7 +18,7 @@ interface CircuitState {
 
   code: string;
   running: boolean;
-  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>;
+  digitalPins: Record<number, DigitalPinState>;
   consoleLog: string[];
   lcdScreens: Record<string, LcdScreenState>;
   buzzerStates: Record<string, BuzzerState>;

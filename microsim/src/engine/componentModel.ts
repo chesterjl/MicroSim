@@ -1,9 +1,19 @@
 import type { PartInstance, Wire } from "../types/types";
 import type { NetState } from "./netlist";
+import type { OhmsLawReading } from "./physics/ohmsLaw";
 
 export interface DigitalPinState {
   mode: "INPUT" | "OUTPUT" | "INPUT_PULLUP";
   value: "HIGH" | "LOW";
+  /**
+   * Fraction of time (0..1) this OUTPUT pin actually spends HIGH, averaged
+   * over the last sample window -- populated by PinDutyTracker so
+   * analogWrite()'s PWM resolves to a real average instead of one
+   * arbitrary instant. Undefined for INPUT/INPUT_PULLUP pins, and treated
+   * as the binary value (1 for HIGH, 0 for LOW) wherever it's missing, so
+   * nothing else has to special-case its absence.
+   */
+  dutyCycle?: number;
 }
 
 export interface UnionFindLike {
@@ -64,6 +74,9 @@ export interface SimContext {
    * Phase A `connect` unions have run.
    */
   sumSeriesResistance(roots: Set<string>): number;
+
+  setElectricalReading(partId: string, reading: OhmsLawReading): void;
+  getElectricalReading(partId: string): OhmsLawReading | null;
 
 }
 

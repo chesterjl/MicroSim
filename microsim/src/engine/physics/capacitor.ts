@@ -1,3 +1,4 @@
+// engine/capacitor.ts
 import { getCapacitanceFarads } from "../../config/partDefinitions";
 import type { PartInstance } from "../../types/types";
 import type { Netlist } from "../netlist";

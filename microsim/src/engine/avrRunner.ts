@@ -1,13 +1,15 @@
+// engine/avrRunner.ts
 import {CPU,avrInstruction,portBConfig,portDConfig,AVRUSART,AVRIOPort,AVRTimer,timer0Config,timer1Config,timer2Config,AVRADC,adcConfig,usart0Config,AVRTWI,twiConfig,PinState} from "avr8js";
 import type { PartInstance, Wire } from "../types/types";
 import { buildNetlist } from "./netlist";
-import type { Netlist } from "./netlist";
+import type { DigitalPinState, Netlist } from "./netlist";
 import { createI2CBus } from "./device/i2cLcdDevice";
 import { setBuzzerTone, stopBuzzerTone, stopAllBuzzers } from "./device/buzzerVoice";
 import { getPortAndBit } from "./device/arduinoPins";
 import { buildExternalDevices } from "./deviceManager";
 import { compileSketch, loadHexToProgmem } from "../services/compilerService";
 import { computeNextCapacitorVoltage } from "./physics/capacitor";
+import { PinDutyTracker } from "./device/pinDutyTracker";
 
 export interface LcdScreenState {
   cells: number[][];
@@ -20,7 +22,7 @@ export interface BuzzerState {
   frequency: number;
 }
 
-export type DigitalPinsSnapshot = Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>;
+export type DigitalPinsSnapshot = Record<number, DigitalPinState>;
 
 export interface CircuitSnapshot {
   parts: PartInstance[];
@@ -132,6 +134,22 @@ export class AVRRunner {
       const cpu = new CPU(new Uint16Array(progmem.buffer));
       const portB = new AVRIOPort(cpu, portBConfig);
       const portD = new AVRIOPort(cpu, portDConfig);
+      const dutyTracker = new PinDutyTracker(portB, portD, () => cpu.cycles);
+
+      const pinModeValue: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }> = {};
+      let latestDuty: number[] = new Array(14).fill(0);
+
+      const emitDigitalPins = () => {
+        const merged: Record<number, DigitalPinState> = {};
+        for (let pin = 0; pin <= 13; pin++) {
+          const base = pinModeValue[pin] ?? { mode: "INPUT" as const, value: "LOW" as const };
+          merged[pin] = {
+            ...base,
+            dutyCycle: base.mode === "OUTPUT" ? latestDuty[pin] : undefined,
+          };
+        }
+        this.callbacks.onDigitalPinsChange(merged);
+      };
 
       // Hardware timers -- enable millis(), delay(), and PWM output.
       new AVRTimer(cpu, timer0Config);
@@ -201,13 +219,11 @@ export class AVRRunner {
       }
 
       const updatePinState = () => {
-        const nextPins: DigitalPinsSnapshot = {};
-
         for (let pin = 0; pin <= 7; pin++) {
           const pinVal = portD.pinState(pin);
           const isOutput = pinVal === PinState.Low || pinVal === PinState.High;
           const isHigh = pinVal === PinState.High || pinVal === PinState.InputPullUp;
-          nextPins[pin] = { mode: isOutput ? "OUTPUT" : "INPUT", value: isHigh ? "HIGH" : "LOW" };
+          pinModeValue[pin] = { mode: isOutput ? "OUTPUT" : "INPUT", value: isHigh ? "HIGH" : "LOW" };
         }
 
         for (let pin = 0; pin <= 5; pin++) {
@@ -215,10 +231,10 @@ export class AVRRunner {
           const pinVal = portB.pinState(pin);
           const isOutput = pinVal === PinState.Low || pinVal === PinState.High;
           const isHigh = pinVal === PinState.High || pinVal === PinState.InputPullUp;
-          nextPins[arduinoPin] = { mode: isOutput ? "OUTPUT" : "INPUT", value: isHigh ? "HIGH" : "LOW" };
+          pinModeValue[arduinoPin] = { mode: isOutput ? "OUTPUT" : "INPUT", value: isHigh ? "HIGH" : "LOW" };
         }
 
-        this.callbacks.onDigitalPinsChange(nextPins);
+        emitDigitalPins();
       };
 
       portB.addListener(updatePinState);
@@ -257,6 +273,14 @@ export class AVRRunner {
         if (!this.running || token !== this.runToken) return;
 
         try {
+          // Sample duty over the frame that just elapsed and push it into the
+          // circuit's digital-pin snapshot BEFORE this frame's instructions run.
+          // One frame of latency (~16ms) is imperceptible for visual brightness,
+          // and this cadence (60Hz) is what keeps duty a real average instead of
+          // a per-edge reset that would erase the averaging entirely.
+          latestDuty = dutyTracker.sampleAndReset();
+          emitDigitalPins();
+
           const currentCircuit = this.callbacks.getCircuit();
           const activeArduino = currentCircuit.parts.find((p) => p.type === "arduino-uno");
           const frameNetlist = resyncDigitalInputs();
