@@ -15,7 +15,7 @@ export const relayModel: ComponentModel = {
 
     const inState = ctx.resolveNetState(ctx.pinRoot(part.id, "in"));
     const activeLow = part.properties?.activeLow !== false;
-    const triggered = activeLow ? inState === "low" : inState === "high";
+    const triggered = activeLow ? inState === "LOW" : inState === "HIGH";
 
     const energized = coilPowered && triggered;
     if (energized) ctx.setFlag("relayEnergized", part.id);
@@ -24,6 +24,24 @@ export const relayModel: ComponentModel = {
       ctx.uf.union(ctx.key(part.id, "com"), ctx.key(part.id, "no"));
     } else {
       ctx.uf.union(ctx.key(part.id, "com"), ctx.key(part.id, "nc"));
+    }
+  },
+
+  contributeElectricalBranches(part, ctx) {
+    const energized = ctx.hasFlag("relayEnergized", part.id);
+
+    if (energized) {
+      ctx.addResistiveBranch({
+        nodeA: ctx.electricalNodeId!(part.id, "com"),
+        nodeB: ctx.electricalNodeId!(part.id, "no"),
+        ohms: 0.01,
+      });
+    } else {
+      ctx.addResistiveBranch({
+        nodeA: ctx.electricalNodeId!(part.id, "com"),
+        nodeB: ctx.electricalNodeId!(part.id, "nc"),
+        ohms: 0.01,
+      });
     }
   },
 };

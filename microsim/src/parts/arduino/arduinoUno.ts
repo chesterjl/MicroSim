@@ -35,4 +35,13 @@ export const arduinoUnoModel: ComponentModel = {
       }
     }
   },
+
+  contributeElectricalBranches(part, ctx) {
+    // Rails only, for now -- modeling each digitalWrite()-driven pin as
+    // its own ideal source is real (Phase 8's "DC voltage source" territory
+    // once more source types exist); out of scope this pass.
+    const gnd = ctx.electricalNodeId!(part.id, "gnd-top");
+    ctx.addVoltageSource({ id: `arduino:${part.id}:5v`, nodeA: ctx.electricalNodeId!(part.id, "5v"), nodeB: gnd, volts: 5 });
+    ctx.addVoltageSource({ id: `arduino:${part.id}:3v3`, nodeA: ctx.electricalNodeId!(part.id, "3v3"), nodeB: gnd, volts: 3.3 });
+  },
 };

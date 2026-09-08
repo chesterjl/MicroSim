@@ -4,6 +4,10 @@ import { getComponentModel } from "./modelRegistry";
 import type { SimContext, DigitalPinState } from "./componentModel";
 import { getResolvedPins } from "./physics/geometry";
 import type { OhmsLawReading } from "./physics/ohmsLaw";
+import { UnionFind } from "./unionFind";
+import { BREADBOARD_CONTACT_EPSILON_PX, buildElectricalGraph, type ElectricalGraph } from "./solver/electricalGraph";
+import type { CircuitSolution, ResistiveBranch, VoltageSourceBranch } from "./solver/electricalTypes";
+import { solveCircuit } from "./solver/mnaSolver";
 
 export type NetState = "HIGH" | "LOW" | "FLOATING";
 
@@ -11,36 +15,8 @@ export type { DigitalPinState };
 
 export const CAPACITOR_HIGH_THRESHOLD_V = 2;
 
-// Resolve breadboard <-> component contact purely by geometry, every
-// build -- no persistent Wire objects, so it self-corrects the instant
-// a part or breadboard moves.
-const BREADBOARD_CONTACT_EPSILON_PX = 1;
-
 function pinKey(partId: string, pinId: string) {
   return `${partId}::${pinId}`;
-}
-
-class UnionFind {
-  private parent = new Map<string, string>();
-
-  find(x: string): string {
-    if (!this.parent.has(x)) this.parent.set(x, x);
-    let root = x;
-    while (this.parent.get(root) !== root) root = this.parent.get(root)!;
-    let cur = x;
-    while (this.parent.get(cur) !== root) {
-      const next = this.parent.get(cur)!;
-      this.parent.set(cur, root);
-      cur = next;
-    }
-    return root;
-  }
-
-  union(a: string, b: string) {
-    const ra = this.find(a);
-    const rb = this.find(b);
-    if (ra !== rb) this.parent.set(ra, rb);
-  }
 }
 
 export interface Netlist {
@@ -60,9 +36,18 @@ export interface Netlist {
   isNetGrounded: (partId: string, pinId: string) => boolean;
   getLoadResistanceOnNet: (partId: string, pinId: string) => number;
   getElectricalReading: (partId: string) => OhmsLawReading | null;
-  /** Generic passthrough to whatever a ComponentModel set via ctx.setFlag() -- e.g. "ledReversed", "passiveBuzzerReady", "motorRunningForward". See each model's file for the flag names it sets. */
+
+  /** Phase 5/6 -- solved node voltage from the KCL/KVL network. 
+   * 0V if the pin isn't part of the resistive network, or nothing has been solved (paused). */
+  getNodeVoltage: (partId: string, pinId: string) => number;
+  /** Current (amps) through a component's registered voltage-source branch. See led.ts/battery.ts for id conventions. */
+  getSourceCurrent: (sourceId: string) => number;
+  /** Generic passthrough to whatever a ComponentModel set via ctx.setFlag() -- e.g. "ledReversed", "passiveBuzzerReady", "motorRunningForward". 
+   * See each model's file for the flag names it sets. */
   hasFlag: (flagName: string, partId: string) => boolean;
 }
+
+
 export function buildNetlist(
   parts: PartInstance[],
   wires: Wire[],
@@ -110,6 +95,11 @@ export function buildNetlist(
     return totalOhms;
   }
 
+  let electricalGraphRef: ElectricalGraph | null = null;
+  let circuitSolution: CircuitSolution | null = null;
+  const electricalBranches: ResistiveBranch[] = [];
+  const electricalSources: VoltageSourceBranch[] = [];
+
   const ctx: SimContext = {
     parts,
     wires,
@@ -136,6 +126,12 @@ export function buildNetlist(
     },
     setElectricalReading: (partId, reading) => electricalReadings.set(partId, reading),
     getElectricalReading: (partId) => electricalReadings.get(partId) ?? null,
+        electricalNodeId: (partId, pinId) => (electricalGraphRef ? electricalGraphRef.nodeId(partId, pinId) : 0),
+    addResistiveBranch: (branch) => electricalBranches.push(branch),
+    addVoltageSource: (source) => electricalSources.push(source),
+    getNodeVoltage: (partId, pinId) =>
+      circuitSolution && electricalGraphRef ? circuitSolution.nodeVoltage(electricalGraphRef.nodeId(partId, pinId)) : 0,
+    getSourceCurrent: (sourceId) => (circuitSolution ? circuitSolution.sourceCurrent(sourceId) : 0),
     hasFlag: (flagName, partId) => flags.get(flagName)?.has(partId) ?? false,
   };
 
@@ -203,12 +199,13 @@ export function buildNetlist(
       isNetGrounded: () => false,
       getLoadResistanceOnNet: (partId, pinId) => sumSeriesResistance(new Set([uf.find(pinKey(partId, pinId))])),
       getElectricalReading: () => null,
+      getNodeVoltage: () => 0,
+      getSourceCurrent: () => 0,
       hasFlag: () => false,
     };
   }
 
-  // --- Everything below is unchanged, and only runs while isRunning. ---
-
+  // -- Below code only runs while the simulation isRunning. ---
   // Generic ground/power collection, interleaved with Phase B1 (drive)
   for (const part of parts) {
     const def = partDefinitions[part.type];
@@ -236,10 +233,22 @@ export function buildNetlist(
     getComponentModel(part.type)?.driveAfterPower?.(part, ctx);
   }
 
+
   for (const part of parts) {
     getComponentModel(part.type)?.postResolve?.(part, ctx);
   }
 
+  // Phase 5/6: MNA electrical network (KCL/KVL). Runs after
+  // postResolve so digital state (e.g. "is this LED forward-biased?") is
+  // already settled and safe for contributeElectricalBranches to read.
+  electricalGraphRef = buildElectricalGraph(parts, wires);
+
+  for (const part of parts) {
+    getComponentModel(part.type)?.contributeElectricalBranches?.(part, ctx);
+  }
+
+  circuitSolution = solveCircuit(electricalGraphRef.nodeCount, electricalBranches, electricalSources);
+  // console.log("[MNA]", { nodeCount: electricalGraphRef.nodeCount, branches: electricalBranches, sources: electricalSources });
   function isPartPowered(partId: string): boolean {
     const vccRoot = uf.find(pinKey(partId, "vcc"));
     const gndRoot = uf.find(pinKey(partId, "gnd"));
@@ -305,6 +314,8 @@ export function buildNetlist(
       return sumSeriesResistance(new Set([root]));
     },
     getElectricalReading: (partId) => ctx.getElectricalReading(partId),
+    getNodeVoltage: (partId, pinId) => ctx.getNodeVoltage(partId, pinId),
+    getSourceCurrent: (sourceId) => ctx.getSourceCurrent(sourceId),
     hasFlag: (flagName, partId) => ctx.hasFlag(flagName, partId),
   };
 }

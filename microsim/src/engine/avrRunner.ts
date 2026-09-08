@@ -165,7 +165,7 @@ export class AVRRunner {
         parts: initialCircuit.parts,
         wires: initialCircuit.wires,
         digitalPins: initialCircuit.digitalPins,
-
+          
         onServoAngleChange: this.callbacks.onServoAngleChange,
 
         onPassiveBuzzerFrequencyChange: (partId, frequencyHz) => {

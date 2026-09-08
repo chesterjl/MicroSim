@@ -2,7 +2,7 @@ import type { AVRIOPort } from "avr8js";
 import type { PartInstance, Wire } from "../types/types";
 import type { ExternalDevice } from "./device/externalDevice";
 import { setupLcdI2CDevices, type I2CDevice } from "./device/i2cLcdDevice";
-import { buildNetlist } from "./netlist";
+import { buildNetlist, type DigitalPinState } from "./netlist";
 
 import { setupServoDevices } from "./device/servoDevice";
 import { setupPassiveBuzzerDevices } from "./device/passiveBuzzerDevice";
@@ -16,8 +16,7 @@ export interface DeviceSetupContext {
   portD: AVRIOPort;
   parts: PartInstance[];
   wires: Wire[];
-  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>;
-
+  digitalPins: Record<number, DigitalPinState>;
   // Callbacks and Accessors
   onServoAngleChange?: (partId: string, angle: number) => void;
   onPassiveBuzzerFrequencyChange?: (partId: string, frequencyHz: number) => void;

@@ -20,16 +20,7 @@ interface DragState {
   partId: string;
   offsetX: number;
   offsetY: number;
-  // FIX (bug 2): captured once, at the moment the drag starts -- tells us
-  // whether this part was ALREADY sitting on a breadboard hole before this
-  // drag began. If it was, we skip re-snapping on mouseup, so dragging a
-  // part off a breadboard (or dragging something like the Arduino across
-  // one) no longer gets yanked back into alignment every time you let go.
   wasNearBreadboard: boolean;
-  // NEW: when the part being dragged IS a breadboard, this holds every
-  // other part currently seated on one of its holes at drag-start. Each
-  // frame the breadboard moves, these ride along by the same delta so
-  // they never lose contact.
   riderPartIds: string[];
 }
 
@@ -93,15 +84,11 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       }
 
       const activeEl = document.activeElement;
-      const isTyping =
-        activeEl?.tagName === "INPUT" ||
-        activeEl?.tagName === "TEXTAREA" ||
-        activeEl?.getAttribute("contenteditable") === "true";
+      const isTyping = activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA" || activeEl?.getAttribute("contenteditable") === "true";
+
       if (isTyping) return;
 
-      if (!isSimulating && (e.key === "Delete" || e.key === "Backspace") && selectedPartId) {
-        deletePart(selectedPartId);
-      }
+      if (!isSimulating && (e.key === "Delete" || e.key === "Backspace") && selectedPartId) deletePart(selectedPartId);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -109,9 +96,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   }, [selectedPartId, deletePart, pendingWireStart, cancelWire, isSimulating]);
 
   useEffect(() => {
-    if (isSimulating && pendingWireStart) {
-      cancelWire();
-    }
+    if (isSimulating && pendingWireStart) cancelWire();
   }, [isSimulating, pendingWireStart, cancelWire]);
 
   function toSvgPoint(e: React.MouseEvent | MouseEvent) {
@@ -130,9 +115,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     };
   }
 
-  // --- FIX (bug 2 helper): pure geometry check, no side effects. Used both
-  // to capture "was this part already on a breadboard" at drag-start, and
-  // inside trySnapToBreadboard itself. ---
+  // Used to capture "was this part already on a breadboard" at drag-start, and inside trySnapToBreadboard itself. (pure geometry)
   function findNearestBreadboardPin(part: PartInstance) {
     const breadboards = parts.filter((p) => isBreadboard(p.type));
     if (breadboards.length === 0) return null;
@@ -153,6 +136,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   }
 
   const SEATED_EPSILON_PX = 1;
+
   function findSeatedPartIds(breadboard: PartInstance): string[] {
     const breadboardPins = getResolvedPins(breadboard);
 
@@ -165,6 +149,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       )
       .map((p) => p.id);
   }
+
   function handlePartMouseDown(e: React.MouseEvent, partId: string) {
     if (pendingWireStart) return;
     e.stopPropagation();
@@ -180,8 +165,7 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
 
     const wasNearBreadboard = !isBreadboard(part.type) && findNearestBreadboardPin(part) !== null;
 
-    // NEW: if we're grabbing a breadboard, snapshot everyone currently
-    // seated on it so they can be dragged along with it.
+    // if we're grabbing a breadboard, snapshot everyone currently seated on it so they can be dragged along with it.
     const riderPartIds = isBreadboard(part.type) ? findSeatedPartIds(part) : [];
 
     const point = toSvgPoint(e);
@@ -195,12 +179,10 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     }
   }
 
-  // FIX (bug 1): this now runs UNCONDITIONALLY on every mouse move over the
+  // this now runs UNCONDITIONALLY on every mouse move over the
   // window (see the effect below), not just while drag/pan is active. That's
   // what keeps `cursor` live while the user is mid-wire (pendingWireStart
-  // set, but drag/isPanning both false) -- previously cursor froze the
-  // instant the user wasn't also dragging a part, which is why wires either
-  // didn't appear or snapped to a stale, far-away cursor position.
+  // set, but drag/isPanning both false)
   function handleMouseMove(e: React.MouseEvent | MouseEvent) {
     const point = toSvgPoint(e);
     setCursor(point);
@@ -240,10 +222,9 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
         if (dx !== 0 || dy !== 0) {
           shiftWireWaypoints(drag.partId, dx, dy);
 
-          // NEW: carry every rider along by the identical delta -- their
+          // carry every rider along by the identical delta -- their
           // offset relative to the breadboard never changes, so they stay
-          // seated on the exact same holes no matter how far the breadboard
-          // travels.
+          // seated on the exact same holes no matter how far the breadboard travels.
           for (const riderId of drag.riderPartIds) {
             const rider = parts.find((p) => p.id === riderId);
             if (!rider) continue;
@@ -272,18 +253,14 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     movePart(part.id, newX, newY);
 
     // NOTE: no wire creation here on purpose -- breadboard contact is
-    // resolved dynamically by geometry inside netlist.ts, not by persisted
-    // Wire records. That's what stops "ghost wires" when the breadboard
-    // itself gets dragged away later.
+    // resolved dynamically by geometry inside netlist.ts, not by persisted Wire records.
   }
 
-  // FIX (bug 2 + bug 3): mouseup only re-snaps if the part WASN'T already
-  // on a breadboard when this drag started. And it no longer depends on
-  // firing from a container mouseleave -- see the window-level effect below.
+  // mouseup only re-snaps if the part WASN'T already
+  // on a breadboard when this drag started. And it no longer depends on firing from a container mouseleave
   function handleMouseUp() {
-    if (drag && !isSimulating && !drag.wasNearBreadboard) {
-      trySnapToBreadboard(drag.partId);
-    }
+    if (drag && !isSimulating && !drag.wasNearBreadboard) trySnapToBreadboard(drag.partId);
+    
     setDrag(null);
     setIsPanning(false);
   }
@@ -323,20 +300,12 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
     }
   }
 
-  // FIX (bug 1 + bug 3): mousemove/mouseup are tracked on `window`,
-  // unconditionally, for the component's whole lifetime -- not gated behind
+  // mousemove/mouseup are tracked on `window`, unconditionally, for the component's whole lifetime -- not gated behind
   // `drag || isPanning`, and not duplicated on the container. This means:
-  //   - wire-drafting cursor tracking works even when nothing is being
-  //     dragged (fixes bug 1)
-  //   - dragging survives the pointer leaving the container's bounding box
-  //     (e.g. DevTools docking/resizing the viewport mid-drag), because we
-  //     never relied on the container itself receiving the event (fixes
-  //     bug 3's root cause)
+  //   - wire-drafting cursor tracking works even when nothing is being dragged (fixes bug 1)
   // The container no longer has onMouseMove / onMouseUp / onMouseLeave at
-  // all -- see the JSX below. In particular onMouseLeave is gone entirely:
-  // it was the thing silently cancelling drags whenever DevTools caused a
-  // mouseleave on the canvas, even while the mouse button was still held.
   useEffect(() => {
+
     function onWindowMove(e: MouseEvent) {
       handleMouseMove(e);
     }
@@ -458,8 +427,6 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
       style={{ cursor: canvasCursor }}
       onMouseDown={handleCanvasMouseDown}
       onContextMenu={handleContextMenu}
-      // NOTE: onMouseMove / onMouseUp / onMouseLeave intentionally removed
-      // from this element -- all tracked on window now (see effect above).
     >
       <svg ref={svgRef} className="w-full h-full overflow-hidden block" onClick={handleBackgroundClick}>
         <defs>

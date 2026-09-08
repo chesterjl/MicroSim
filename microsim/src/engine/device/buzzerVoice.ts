@@ -1,10 +1,9 @@
 /**
- * Web Audio-based sound engine for buzzer parts (active + passive).
- * Each buzzer part gets its own oscillator+gain voice, keyed by partId,
+ * Web Audio-based sound engine for buzzer parts (active, passive).
+ * Each buzzer part gets its own oscillator + gain voice, keyed by partId,
  * so multiple buzzers can sound simultaneously and each can be
  * independently started/retuned/stopped as the simulation drives its pins.
  */
-
 interface BuzzerVoice {
   oscillator: OscillatorNode;
   gain: GainNode;
@@ -27,11 +26,8 @@ function getAudioContext(): AudioContext | null {
   }
 
   // Browsers start new AudioContexts suspended until a user gesture.
-  // runSimulation is always triggered by clicking Run, so this resolves
-  // immediately in practice.
-  if (audioCtx.state === "suspended") {
-    audioCtx.resume().catch(() => {});
-  }
+  // runSimulation is always triggered by clicking Run, so this resolves immediately in practice.
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
 
   return audioCtx;
 }
@@ -59,12 +55,10 @@ function ensureVoice(partId: string): BuzzerVoice | null {
   return voice;
 }
 
-/**
- * Starts (or retunes, if already sounding) a buzzer's tone. Safe to call
+/* Starts (or retunes, if already sounding) a buzzer's tone. Safe to call
  * every frame -- retuning a voice that's already ramped up just changes
  * pitch without any audible click; only silence -> sound gets an attack
- * ramp.
- */
+ * ramp. */
 export function setBuzzerTone(partId: string, frequencyHz: number): void {
   if (!frequencyHz || frequencyHz <= 0) {
     stopBuzzerTone(partId);
@@ -85,11 +79,9 @@ export function setBuzzerTone(partId: string, frequencyHz: number): void {
   }
 }
 
-/**
- * Silences a single buzzer's voice (short release instead of an abrupt
+/* Silences a single buzzer's voice (short release instead of an abrupt
  * cutoff, to avoid a click) without tearing down its oscillator, so it
- * can be re-triggered instantly next frame.
- */
+ * can be re-triggered instantly next frame. */
 export function stopBuzzerTone(partId: string): void {
   const ctx = audioCtx;
   const voice = voices.get(partId);
@@ -101,21 +93,14 @@ export function stopBuzzerTone(partId: string): void {
   voice.gain.gain.linearRampToValueAtTime(0, now + RELEASE_SECONDS);
 }
 
-/**
- * Fully tears down every buzzer voice -- call this when the simulation
+/* Fully tears down every buzzer voice -- call this when the simulation
  * stops or restarts, so a buzzer mid-tone doesn't keep humming after
- * Stop is pressed.
- */
+ * Stop is pressed. */
 export function stopAllBuzzers(): void {
-  for (const partId of voices.keys()) {
-    removeBuzzerVoice(partId);
-  }
+  for (const partId of voices.keys()) removeBuzzerVoice(partId);
 }
 
-/**
- * Removes a single buzzer's voice entirely, e.g. when its part is
- * deleted from the canvas mid-simulation.
- */
+// Removes a single buzzer's voice entirely, e.g. when its part is deleted from the canvas mid-simulation 
 export function removeBuzzerVoice(partId: string): void {
   const voice = voices.get(partId);
   if (!voice) return;

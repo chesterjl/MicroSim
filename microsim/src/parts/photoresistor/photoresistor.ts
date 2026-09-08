@@ -21,8 +21,16 @@ export const photoresistorModel: ComponentModel = {
   seriesResistanceContribution(part, roots, ctx) {
     const pin1Root = ctx.pinRoot(part.id, "pin1");
     if (!roots.has(pin1Root)) return 0;
-
     const lightLevel = (part.properties?.lightLevel as number) ?? 0.5;
     return photoresistorOhms(lightLevel);
+  },
+  
+  contributeElectricalBranches(part, ctx) {
+    const lightLevel = (part.properties?.lightLevel as number) ?? 0.5;
+    ctx.addResistiveBranch({
+      nodeA: ctx.electricalNodeId!(part.id, "pin1"),
+      nodeB: ctx.electricalNodeId!(part.id, "pin2"),
+      ohms: photoresistorOhms(lightLevel),
+    });
   },
 };

@@ -29,8 +29,7 @@ export function LedPart({ part, selected, pinStates, netlist, onPinClick }: LedP
   const rawColor = (part.properties?.color as string) ?? "red";
   const colorTheme = COLOR_PALETTE[rawColor.toLowerCase()] ?? COLOR_PALETTE.red;
 
-  // Real current-derived brightness -- already 0 for reverse bias,
-  // insufficient voltage, or a blown junction (see ledModel.getBrightness).
+  // Real current-derived brightness -- already 0 for reverse bias, insufficient voltage, or a blown junction
   const brightness = netlist?.getPartBrightness(part.id) ?? 0;
   const isLit = brightness > 0.005;
 
@@ -38,11 +37,11 @@ export function LedPart({ part, selected, pinStates, netlist, onPinClick }: LedP
   const blown = netlist?.hasFlag("ledBlown", part.id) ?? false;
   const reading = netlist?.getElectricalReading(part.id) ?? null;
 
-  // Continuous off->on color interpolation instead of opacity-stacking a
+  // Continuous off -> on color interpolation instead of opacity-stacking a
   // fixed "on" swatch -- gives every brightness level a genuinely distinct
   // shade rather than just "how much on-color leaks through."
   const bodyColor = blown ? CHARRED_BODY : lerpColor(colorTheme.off, colorTheme.on, brightness);
-
+  
   const def = partDefinitions.led;
   const legHeight = 1.8 * GRID;
   const domeRadius = 1.8 * GRID;

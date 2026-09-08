@@ -1,5 +1,5 @@
 import type { PartInstance, Wire } from "../../types/types";
-import { buildNetlist, type Netlist } from "../netlist";
+import { buildNetlist, type DigitalPinState, type Netlist } from "../netlist";
 
 // (LCD 16x2 I2C, LCD 20x4 I2C)
 export const DOTS_W = 5;
@@ -15,12 +15,10 @@ export const ROW_GAP_Y = 4.0;
 export const CHAR_BLOCK_W = (DOTS_W - 1) * DOT_PITCH + DOT_SIZE;
 export const CHAR_BLOCK_H = (DOTS_H - 1) * DOT_PITCH + DOT_SIZE;
 
-/**
- * A minimal, generic I2C device on the bus -- one per address. Multiple
+/* A minimal, generic I2C device on the bus -- one per address. Multiple
  * devices can share the same physical bus (that's the whole point of
  * I2C); the bus multiplexer below routes each transaction to whichever
- * device's address matches.
- */
+ * device's address matches. */
 export interface I2CDevice {
   address: number; // 7-bit I2C address, e.g. 0x27
   handleStart?: () => void;
@@ -29,8 +27,7 @@ export interface I2CDevice {
   readByte?: (ack: boolean) => number;
 }
 
-/**
- * Fans a single physical I2C bus out to multiple devices by address --
+/* Fans a single physical I2C bus out to multiple devices by address --
  * mirrors how AVRTWI expects ONE event handler for the whole bus, even
  * though real I2C supports many addressable devices sharing it. Add a
  * future I2C part (another sensor, a second display, etc.) by just
@@ -41,8 +38,7 @@ export interface I2CDevice {
  * TWIEventHandler pattern (matching NoopTWIEventHandler, which is
  * exported and worth checking directly if anything below doesn't
  * line up -- `node -e "console.log(require('avr8js').NoopTWIEventHandler.toString())"`
- * will print its actual method names straight from your installed version.
- */
+ * will print its actual method names straight from your installed version. */
 export function createI2CBus(devices: I2CDevice[]) {
   let activeDevice: I2CDevice | null = null;
 
@@ -209,7 +205,7 @@ export function createHd44780Device(
 export function setupLcdI2CDevices(
   parts: PartInstance[],
   wires: Wire[],
-  digitalPins: Record<number, { mode: "INPUT" | "OUTPUT"; value: "HIGH" | "LOW" }>,
+  digitalPins: Record<number, DigitalPinState>,
   onScreenChange: (
     partId: string,
     cells: number[][],

@@ -151,7 +151,7 @@ export const partDefinitions: Record<string, PartDefinition> = {
       { id: "pin1", label: "1", x: -3, y: 0, type: "passive" },
       { id: "pin2", label: "2", x: 3, y: 0, type: "passive" },
     ],
-    defaultProperties: { resistance: 220 },
+    defaultProperties: { resistance: 330 },
   },
 
   pushbutton: {

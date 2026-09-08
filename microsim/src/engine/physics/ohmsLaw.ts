@@ -12,17 +12,18 @@ export const LED_FORWARD_VOLTAGE: Record<string, number> = {
   blue: 3.2,
   white: 3.2,
 };
+
 export const DEFAULT_LED_FORWARD_VOLTAGE = 2.0;
 export const DEFAULT_LED_RATED_CURRENT_AMPS = 0.02; // 20mA -- standard operating current
 
-// Anchor points calibrated to real 5mm LED behavior:
-//   < 0.05mA        -> not perceptibly lit
-//   0.05mA - 2mA     -> faint, but clearly visible indoors
-//   2mA - 20mA       -> ramps up to standard/rated brightness
-//   > 30mA           -> destroyed (burnt out)
-export const MIN_VISIBLE_CURRENT_AMPS = 0.00005; // 0.05 mA
-export const FAINT_CURRENT_AMPS = 0.002; // 2 mA -- top of the "faint but visible" band
-export const MAX_SAFE_CURRENT_AMPS = 0.03; // 30 mA -- beyond this, the LED is destroyed
+// Anchor points calibrated to real 5mm LED behavior: (Amps)
+//   < 0.0005 A        -> not perceptibly lit
+//   0.0005 A - 0.0019 A     -> faint, but clearly visible indoors
+//   0.002 A - 0.003 A       -> ramps up to standard/rated brightness
+//   > 0.0031 A           -> destroyed (burnt out)
+export const MIN_VISIBLE_CURRENT_AMPS = 0.00005; // 0.0005 A
+export const FAINT_CURRENT_AMPS = 0.002; // 0.002 A -- top of the "faint but visible" band
+export const MAX_SAFE_CURRENT_AMPS = 0.03; // 0.003 A -- beyond this, the LED is destroyed
 
 export function calculateCurrentAmps(
   loopVoltage: number,
@@ -47,7 +48,6 @@ export function currentToBrightness(currentAmps: number, ratedCurrentAmps = DEFA
   if (currentAmps <= MIN_VISIBLE_CURRENT_AMPS) return 0;
 
   if (currentAmps <= FAINT_CURRENT_AMPS) {
-    // Faint band: 0.05mA -> 2mA maps to 0 -> 0.25, log-scaled since
     // perceived light intensity is roughly logarithmic in current, not linear.
     const logMin = Math.log10(MIN_VISIBLE_CURRENT_AMPS);
     const logFaint = Math.log10(FAINT_CURRENT_AMPS);
@@ -61,7 +61,7 @@ export function currentToBrightness(currentAmps: number, ratedCurrentAmps = DEFA
   return Math.max(0.25, Math.min(1, 0.25 + 0.75 * t));
 }
 
-/** True once current exceeds the component's safe rated maximum -- the point a real LED burns out. */
+// True once current exceeds the component's safe rated maximum -- the point a real LED burns out. 
 export function isOvercurrent(currentAmps: number, maxSafeAmps = MAX_SAFE_CURRENT_AMPS): boolean {
   return currentAmps > maxSafeAmps;
 }

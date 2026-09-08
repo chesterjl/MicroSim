@@ -14,7 +14,7 @@ export function createHcsr04Device(
     powered: boolean) : ExternalDevice {
   const { port: trigPort, bit: trigBit } = getPortAndBit(trigPin, portB, portD);
   const { port: echoPort, bit: echoBit } = getPortAndBit(echoPin, portB, portD);
-
+      
   type EchoState = "idle" | "pending" | "echoing";
   let state: EchoState = "idle";
   let stateChangedAtCycle = 0;

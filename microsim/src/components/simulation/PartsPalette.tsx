@@ -43,7 +43,7 @@ const ICONS = {
 };
 
 const PART_CATALOG: PartOption[] = [
-  { type: "led", label: "LED", category: "Basic", icon: ICONS.led },
+  { type: "led", label: "Led  ", category: "Basic", icon: ICONS.led },
   { type: "resistor", label: "Resistor", category: "Basic", icon: ICONS.resistor },
   { type: "pushbutton", label: "Pushbutton", category: "Basic", icon: ICONS.pushbutton },
   { type: "potentiometer", label: "Potentiometer", category: "Basic", icon: ICONS.potentiometer },
@@ -55,7 +55,7 @@ const PART_CATALOG: PartOption[] = [
   
   { type: "lcd-16x2-i2c", label: "LCD 16x2 (I2C)", category: "Display", icon: ICONS.lcd16x2 },
   { type: "lcd-20x4-i2c", label: "LCD 20x4 (I2C)", category: "Display", icon: ICONS.lcd20x4 },
-  { type: "rgb-led", label: "RGB LED", category: "Display", icon: ICONS.rgbLed },
+  { type: "rgb-led", label: "RGB Led", category: "Display", icon: ICONS.rgbLed },
   { type: "seven-segment", label: "7-Segment Display", category: "Display", icon: ICONS.sevenSegment },
   
   { type: "toggle-switch", label: "Toggle Switch", category: "Input", icon: ICONS.toggleSwitch },
@@ -71,9 +71,9 @@ const PART_CATALOG: PartOption[] = [
   { type: "dht11", label: "DHT11", category: "Sensor", icon: ICONS.dht11 },
   { type: "dht22", label: "DHT22", category: "Sensor", icon: ICONS.dht22 },
 
-  { type: "breadboard-mini", label: "Small Breadboard", category: "Breadboards", icon: ICONS.smallBreadboard },
-  { type: "breadboard-half", label: "Medium Breadboard", category: "Breadboards", icon: ICONS.mediumBreadboard },
-  { type: "breadboard-full", label: "Large Breadboard", category: "Breadboards", icon: ICONS.largeBreadboard },
+  { type: "breadboard-mini", label: "Mini Breadboard", category: "Breadboards", icon: ICONS.smallBreadboard },
+  { type: "breadboard-half", label: "Half Breadboard", category: "Breadboards", icon: ICONS.mediumBreadboard },
+  { type: "breadboard-full", label: "Full Breadboard", category: "Breadboards", icon: ICONS.largeBreadboard },
 
   { type: "arduino-uno", label: "Arduino Uno", category: "Microcontrollers", icon: ICONS.arduinoUno },
   { type: "esp32", label: "ESP32", category: "Microcontrollers", icon: ICONS.esp32 },

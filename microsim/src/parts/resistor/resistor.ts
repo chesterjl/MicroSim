@@ -16,5 +16,15 @@ export const resistorModel: ComponentModel = {
     const rawRes = part.properties?.resistance;
     return typeof rawRes === "number" ? rawRes : parseFloat(String(rawRes)) || 220;
   },
+
+  contributeElectricalBranches(part, ctx) {
+    const rawRes = part.properties?.resistance;
+    const ohms = typeof rawRes === "number" ? rawRes : parseFloat(String(rawRes)) || 220;
+    ctx.addResistiveBranch({
+      nodeA: ctx.electricalNodeId!(part.id, "pin1"),
+      nodeB: ctx.electricalNodeId!(part.id, "pin2"),
+      ohms,
+    });
+  },
 };
 
