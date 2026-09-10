@@ -1,3 +1,4 @@
+// engine/solver/electricalGraph.ts
 import type { PartInstance, Wire } from "../../types/types";
 import { partDefinitions } from "../../config/partDefinitions";
 import { getResolvedPins } from "../physics/geometry";

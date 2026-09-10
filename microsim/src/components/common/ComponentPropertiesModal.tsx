@@ -10,6 +10,8 @@ import { DhtModal } from "../../parts/dht/DhtModal";
 import { UltrasonicHcsr04Modal } from "../../parts/hcSr04/Hcsr04Modal";
 import { SevenSegmentModal } from "../../parts/sevenSegment/SevenSegmentModal";
 
+export const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized"];
+
 interface Props {
   part: PartInstance | null;
   onClose: () => void;

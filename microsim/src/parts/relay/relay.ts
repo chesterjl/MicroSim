@@ -28,20 +28,21 @@ export const relayModel: ComponentModel = {
   },
 
   contributeElectricalBranches(part, ctx) {
-    const energized = ctx.hasFlag("relayEnergized", part.id);
+    // Mirrors the postResolve union above, but for the MNA graph -- a
+    // closed relay contact is a near-zero-resistance connection, not a
+    // literal 0Ω union (mnaSolver.ts intentionally skips true 0Ω
+    // branches, since a hard short belongs in graph topology, not a
+    // component's own contribution). Reads the flag postResolve already
+    // set rather than re-deriving coil/trigger state -- postResolve
+    // always runs before this phase, so it's already settled.
+    const CLOSED_CONTACT_OHMS = 0.01;
+    const activePin = ctx.hasFlag("relayEnergized", part.id) ? "no" : "nc";
 
-    if (energized) {
-      ctx.addResistiveBranch({
-        nodeA: ctx.electricalNodeId!(part.id, "com"),
-        nodeB: ctx.electricalNodeId!(part.id, "no"),
-        ohms: 0.01,
-      });
-    } else {
-      ctx.addResistiveBranch({
-        nodeA: ctx.electricalNodeId!(part.id, "com"),
-        nodeB: ctx.electricalNodeId!(part.id, "nc"),
-        ohms: 0.01,
-      });
-    }
+    ctx.addResistiveBranch({
+      nodeA: ctx.electricalNodeId!(part.id, "com"),
+      nodeB: ctx.electricalNodeId!(part.id, activePin),
+      ohms: CLOSED_CONTACT_OHMS,
+    });
   },
+
 };

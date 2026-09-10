@@ -35,13 +35,14 @@ export function LedPart({ part, selected, pinStates, netlist, onPinClick }: LedP
 
   const reversed = netlist?.hasFlag("ledReversed", part.id) ?? false;
   const blown = netlist?.hasFlag("ledBlown", part.id) ?? false;
+
   const reading = netlist?.getElectricalReading(part.id) ?? null;
 
   // Continuous off -> on color interpolation instead of opacity-stacking a
   // fixed "on" swatch -- gives every brightness level a genuinely distinct
   // shade rather than just "how much on-color leaks through."
   const bodyColor = blown ? CHARRED_BODY : lerpColor(colorTheme.off, colorTheme.on, brightness);
-  
+
   const def = partDefinitions.led;
   const legHeight = 1.8 * GRID;
   const domeRadius = 1.8 * GRID;

@@ -14,7 +14,6 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const spawnCounter = useRef(0);
 
-
   const parts = useCircuitStore((s) => s.parts);
   const addPart = useCircuitStore((s) => s.addPart);
   const running = useCircuitStore((s) => s.running);
@@ -102,7 +101,6 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
                 isSimulating={running}
                 onOpenProperties={(part) => setActivePropertyPart(part)}
                 setZoomLevel={setZoomLevel}
-
               />
             </div>
           </div>

@@ -49,7 +49,8 @@ export interface AVRRunnerCallbacks {
   onServoAngleChange: (partId: string, angle: number) => void;
   onStepperAngleChange: (partId: string, angle: number) => void;
   onCapacitorVoltageChange: (partId: string, voltage: number) => void;
-    
+
+
   /** Sketch failed to compile, or setup blew up before the sim loop started. */
   onCompileError: (message: string) => void;
   /** The sim loop itself threw mid-run. */

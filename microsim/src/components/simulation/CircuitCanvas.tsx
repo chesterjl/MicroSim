@@ -7,8 +7,8 @@ import { partDefinitions } from "../../config/partDefinitions";
 import { GRID, type PartInstance } from "../../types/types";
 import { partComponentRegistry } from "../../parts/partRegistry";
 import { WORLD_HEIGHT, WORLD_WIDTH, ZOOM_RENDER_FACTOR } from "../../constants/constant";
-
-const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized"];
+import { FaultStack } from "../common/FaultStack";
+import { HAS_MODAL_PROPERTIES_PART } from "../common/ComponentPropertiesModal";
 
 const SNAP_DISTANCE = 16;
 
@@ -464,6 +464,8 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
           </g>
         </g>
       </svg>
+
+      <FaultStack faults={netlist.getFaults()} isSimulating={isSimulating} />
     </div>
   );
 }

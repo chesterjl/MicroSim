@@ -1,3 +1,4 @@
+// engine/netlist.ts
 import type { PartInstance, Wire } from "../types/types";
 import { partDefinitions } from "../config/partDefinitions";
 import { getComponentModel } from "./modelRegistry";
@@ -8,9 +9,11 @@ import { UnionFind } from "./unionFind";
 import { BREADBOARD_CONTACT_EPSILON_PX, buildElectricalGraph, type ElectricalGraph } from "./solver/electricalGraph";
 import type { CircuitSolution, ResistiveBranch, VoltageSourceBranch } from "./solver/electricalTypes";
 import { solveCircuit } from "./solver/mnaSolver";
+import { detectFaults } from "./faults/faultDetector";
+import type { Fault } from "./faults/faultTypes";
 
+export type { Fault } from "./faults/faultTypes";
 export type NetState = "HIGH" | "LOW" | "FLOATING";
-
 export type { DigitalPinState };
 
 export const CAPACITOR_HIGH_THRESHOLD_V = 2;
@@ -37,16 +40,13 @@ export interface Netlist {
   getLoadResistanceOnNet: (partId: string, pinId: string) => number;
   getElectricalReading: (partId: string) => OhmsLawReading | null;
 
-  /** Phase 5/6 -- solved node voltage from the KCL/KVL network. 
-   * 0V if the pin isn't part of the resistive network, or nothing has been solved (paused). */
   getNodeVoltage: (partId: string, pinId: string) => number;
-  /** Current (amps) through a component's registered voltage-source branch. See led.ts/battery.ts for id conventions. */
   getSourceCurrent: (sourceId: string) => number;
-  /** Generic passthrough to whatever a ComponentModel set via ctx.setFlag() -- e.g. "ledReversed", "passiveBuzzerReady", "motorRunningForward". 
-   * See each model's file for the flag names it sets. */
   hasFlag: (flagName: string, partId: string) => boolean;
-}
 
+  /** Phase 7 -- every fault detected on this solve, both component-local (flag-based) and whole-circuit (topology-based). Empty while paused. */
+  getFaults: () => Fault[];
+}
 
 export function buildNetlist(
   parts: PartInstance[],
@@ -97,6 +97,7 @@ export function buildNetlist(
 
   let electricalGraphRef: ElectricalGraph | null = null;
   let circuitSolution: CircuitSolution | null = null;
+  let faultsRef: Fault[] = [];
   const electricalBranches: ResistiveBranch[] = [];
   const electricalSources: VoltageSourceBranch[] = [];
 
@@ -126,7 +127,7 @@ export function buildNetlist(
     },
     setElectricalReading: (partId, reading) => electricalReadings.set(partId, reading),
     getElectricalReading: (partId) => electricalReadings.get(partId) ?? null,
-        electricalNodeId: (partId, pinId) => (electricalGraphRef ? electricalGraphRef.nodeId(partId, pinId) : 0),
+    electricalNodeId: (partId, pinId) => (electricalGraphRef ? electricalGraphRef.nodeId(partId, pinId) : 0),
     addResistiveBranch: (branch) => electricalBranches.push(branch),
     addVoltageSource: (source) => electricalSources.push(source),
     getNodeVoltage: (partId, pinId) =>
@@ -136,28 +137,20 @@ export function buildNetlist(
   };
 
   // --- Topology phase: ALWAYS runs, running or paused. ---
-  // Seed every part's pins so isolated parts still resolve to a stable root.
   for (const part of parts) {
     const def = partDefinitions[part.type];
     if (!def) continue;
     for (const pin of def.pins) uf.find(pinKey(part.id, pin.id));
   }
 
-  // User-drawn wires.
   for (const wire of wires) {
     uf.union(pinKey(wire.from.partId, wire.from.pinId), pinKey(wire.to.partId, wire.to.pinId));
   }
 
-  // Phase A: pure topology unions (resistor shorts, potentiometer wiper
-  // side, pushbutton bridge, etc.) -- these depend only on static part
-  // properties, never on resolved electrical state, so they're safe and
-  // meaningful even when paused.
   for (const part of parts) {
     getComponentModel(part.type)?.connect?.(part, ctx);
   }
 
-  // Breadboard <-> component contact, resolved by geometry every build --
-  // also pure topology, always valid.
   const breadboards = parts.filter((p) => p.type.startsWith("breadboard"));
   if (breadboards.length > 0) {
     const breadboardPins = breadboards.flatMap((bb) =>
@@ -179,10 +172,6 @@ export function buildNetlist(
     uf.find(pinKey(partIdA, pinIdA)) === uf.find(pinKey(partIdB, pinIdB));
 
   if (!isRunning) {
-    // Paused: topology above is fully valid and queryable. Everything
-    // electrical (voltages, HIGH/LOW, brightness, power) resolves to a
-    // safe, inert default instead of running the drive/power/voltage
-    // phases below.
     return {
       getPinState: () => "FLOATING",
       getPartBrightness: () => 0,
@@ -202,11 +191,11 @@ export function buildNetlist(
       getNodeVoltage: () => 0,
       getSourceCurrent: () => 0,
       hasFlag: () => false,
+      getFaults: () => [],
     };
   }
 
-  // -- Below code only runs while the simulation isRunning. ---
-  // Generic ground/power collection, interleaved with Phase B1 (drive)
+  // -- Everything below only runs while isRunning. ---
   for (const part of parts) {
     const def = partDefinitions[part.type];
     if (!def) continue;
@@ -233,14 +222,10 @@ export function buildNetlist(
     getComponentModel(part.type)?.driveAfterPower?.(part, ctx);
   }
 
-
   for (const part of parts) {
     getComponentModel(part.type)?.postResolve?.(part, ctx);
   }
 
-  // Phase 5/6: MNA electrical network (KCL/KVL). Runs after
-  // postResolve so digital state (e.g. "is this LED forward-biased?") is
-  // already settled and safe for contributeElectricalBranches to read.
   electricalGraphRef = buildElectricalGraph(parts, wires);
 
   for (const part of parts) {
@@ -248,7 +233,7 @@ export function buildNetlist(
   }
 
   circuitSolution = solveCircuit(electricalGraphRef.nodeCount, electricalBranches, electricalSources);
-  // console.log("[MNA]", { nodeCount: electricalGraphRef.nodeCount, branches: electricalBranches, sources: electricalSources });
+
   function isPartPowered(partId: string): boolean {
     const vccRoot = uf.find(pinKey(partId, "vcc"));
     const gndRoot = uf.find(pinKey(partId, "gnd"));
@@ -258,6 +243,21 @@ export function buildNetlist(
   for (const part of parts) {
     getComponentModel(part.type)?.resolveVoltage?.(part, ctx);
   }
+
+  // Phase F -- fault detection. Runs after resolveVoltage so every model's
+  // eager per-part flags (resistorOverloaded, ledBlown, etc.) are already
+  // set, and after the MNA solve so sourceCurrent()/getNodeVoltage() are
+  // meaningful for the short-circuit/conflicting-source/floating-node checks.
+  faultsRef = detectFaults(
+    parts,
+    electricalGraphRef,
+    electricalBranches,
+    electricalSources,
+    circuitSolution,
+    netDrivenHigh,
+    netDrivenLow,
+    ctx.hasFlag
+  );
 
   function getConnectedArduinoPinImpl(partId: string, pinId: string): number | null {
     const targetRoot = uf.find(pinKey(partId, pinId));
@@ -317,5 +317,6 @@ export function buildNetlist(
     getNodeVoltage: (partId, pinId) => ctx.getNodeVoltage(partId, pinId),
     getSourceCurrent: (sourceId) => ctx.getSourceCurrent(sourceId),
     hasFlag: (flagName, partId) => ctx.hasFlag(flagName, partId),
+    getFaults: () => faultsRef,
   };
 }

@@ -13,6 +13,7 @@ export const batteryModel: ComponentModel = {
     if (voltage <= 0) return; // dead battery -- no source contribution
     ctx.addVoltageSource({
       id: `battery:${part.id}`,
+      partId: part.id,
       nodeA: ctx.electricalNodeId!(part.id, "positive"),
       nodeB: ctx.electricalNodeId!(part.id, "negative"),
       volts: voltage,

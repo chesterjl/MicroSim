@@ -48,6 +48,25 @@ interface CircuitState {
   stopSimulation: () => void;
 }
 
+// Add near the top of the file, with the other pure helpers
+function clearTransientDamage(parts: PartInstance[]): PartInstance[] {
+  return parts.map((p) => {
+    const isCapacitor = p.type === "capacitor-polarized" || p.type === "capacitor-nonpolarized";
+    const wasDamaged = Boolean(p.properties?.destroyed);
+
+    if (!isCapacitor && !wasDamaged) return p; // nothing to reset -- skip the allocation
+
+    return {
+      ...p,
+      properties: {
+        ...p.properties,
+        ...(isCapacitor ? { storedVoltage: 0 } : {}),
+        ...(wasDamaged ? { destroyed: false, destroyedReason: undefined } : {}),
+      },
+    };
+  });
+}
+
 export const useCircuitStore = create<CircuitState>((set, get) => {
   // The runner is pure execution machinery -- it knows nothing about
   // Zustand. Every callback below is just wiring: read circuit/derived
@@ -91,11 +110,11 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
     onStepperAngleChange: (partId, angle) => get().updatePartProperties(partId, { rotorAngleDeg: angle }),
 
     onCapacitorVoltageChange: (partId, voltage) => get().updatePartProperties(partId, { storedVoltage: voltage }),
-
+   
     onCompileError: (message) => {
       set((s) => ({ consoleLog: [...s.consoleLog.slice(-99), `Error: ${message}`], running: false }));
     },
-
+    
     onCrash: (message) => {
       set((s) => ({
         consoleLog: [...s.consoleLog.slice(-99), `[Simulation crashed: ${message}]`],
@@ -255,14 +274,10 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
     setCode: (code) => set({ code }),
 
     runSimulation: async () => {
-      // Reset capacitors and per-run derived state before compiling.
-      set((s) => ({
-        parts: s.parts.map((p) =>
-          p.type === "capacitor-polarized" || p.type === "capacitor-nonpolarized"
-            ? { ...p, properties: { ...p.properties, storedVoltage: 0 } }
-            : p
-        ),
-      }));
+      // Reset capacitors AND any component damage from a previous run --
+      // Stop/Run is the "swap in a fresh part" action in this simulator,
+      // not real desoldering, so nothing destructive carries over.
+      set((s) => ({ parts: clearTransientDamage(s.parts) }));
 
       set({
         running: true,
@@ -277,13 +292,14 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
 
     stopSimulation: () => {
       runner.stop();
-      set({ 
+      set((s) => ({
+        parts: clearTransientDamage(s.parts),
         running: false,
         consoleLog: [],
-        lcdScreens: {}, 
-        buzzerStates: {}, 
-        servoAngles: {} 
-      });
+        lcdScreens: {},
+        buzzerStates: {},
+        servoAngles: {},
+      }));
     },
   };
 });
