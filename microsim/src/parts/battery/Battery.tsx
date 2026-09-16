@@ -82,7 +82,7 @@ export function BatteryPart({ part, selected, pinStates, onPinClick }: BatteryPa
             <text  x={pinX + 56} y={isPositive ? pinY + 15 : pinY - 6} fontSize={14} fontWeight={700} fill={isPositive ? "#dc2626" : "#2b2b2b"} textAnchor="middle">
               {isPositive ? "+" : "−"}
             </text>
-
+            
             <Pin
               x={pinX}
               y={pinY}

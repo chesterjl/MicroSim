@@ -14,6 +14,13 @@ export interface VoltageSourceBranch {
   nodeB: number; // negative terminal
   volts: number;
   seriesOhms?: number;
+
+  /** True for a component's own internal forward-voltage model (LED/RGB LED junction drop, etc.) 
+   * -- NOT an independent power supply. Landing on the same node pair as a real source at a 
+   * different voltage means the junction is being overdriven, not two supplies disagreeing. 
+   * faultDetector skips these in the conflicting-sources / generic-short checks and defers to 
+   * the component's own overcurrent/blown-flag fault instead. */
+  isJunctionDrop?: boolean;
 }
 
 export interface CircuitSolution {

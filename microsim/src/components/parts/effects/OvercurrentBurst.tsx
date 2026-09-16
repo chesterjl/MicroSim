@@ -28,4 +28,4 @@ export function OvercurrentBurst({ cx, cy, size = 26 }: OvercurrentBurstProps) {
       <title>Overcurrent -- exceeds rated maximum current, component destroyed</title>
     </g>
   );
-}
+} 

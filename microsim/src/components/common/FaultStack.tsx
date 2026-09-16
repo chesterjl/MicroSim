@@ -29,10 +29,7 @@ export function FaultStack({ faults, isSimulating }: FaultStackProps) {
   if (!isSimulating) return null;
 
   /* `faults` is the LIVE fault state.
-   *
-   * Do not keep a separate `shownFaults` state here.
-   * If a fault disappears from `faults`, it should disappear
-   * from the UI immediately.
+   * If a fault disappears from `faults` it dissapear from the ui immediately
    */
   const visibleFaults = faults.filter((fault) => !dismissedKeys.has(faultKey(fault)));
 

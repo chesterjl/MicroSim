@@ -1,8 +1,9 @@
 import { GRID } from "../../types/types";
 import type { PartInstance } from "../../types/types";
-import type { NetState } from "../../engine/netlist";
+import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { PinDot } from "../../components/parts/pin/PinDot";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 const WIRE_COLORS: Record<string, string> = {
   coilA: "#3b82f6", // Blue
@@ -16,14 +17,29 @@ interface Stepper28byj48PartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
+  netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function Stepper28byj48Part({ part, selected, pinStates, onPinClick }: Stepper28byj48PartProps) {
+const CHARRED_BODY = "#2a2420";
+const CHARRED_STROKE = "#7f1d1d";
+
+export function Stepper28byj48Part({ part, selected, pinStates, netlist, onPinClick }: Stepper28byj48PartProps) {
   const def = partDefinitions["stepper-28byj48"];
   const bodyR = 8 * GRID; // 80
   const bodyCy = -2 * GRID;
-  const rotorAngle = Number(part.properties?.rotorAngleDeg ?? 0);
+
+  const overloaded = netlist?.hasFlag("stepperOverloaded", part.id) ?? false;
+  const reading = netlist?.getElectricalReading(part.id) ?? null;
+
+  const tooltip = reading
+    ? overloaded
+      ? `Stepper 28BYJ-48 -- COIL BURNED OUT (${(reading.currentAmps * 1000).toFixed(0)}mA exceeded rated max)`
+      : `Stepper 28BYJ-48 -- ${(reading.currentAmps * 1000).toFixed(0)}mA on hottest coil`
+    : undefined;
+
+  // A burned-out coil can't continue stepping -- freeze the rotor where it was.
+  const rotorAngle = overloaded ? 0 : Number(part.properties?.rotorAngleDeg ?? 0);
 
   // Compute bounding X & Y for the pins
   const pinXs = def.pins.map((p) => p.x * GRID);
@@ -40,8 +56,13 @@ export function Stepper28byj48Part({ part, selected, pinStates, onPinClick }: St
   // Collar bottom center (where wires exit)
   const collarY = bodyCy + bodyR;
 
+  const bodyFill = overloaded ? CHARRED_BODY : "#d4d6d8";
+  const bodyStroke = overloaded ? CHARRED_STROKE : selected ? "#4da3ff" : "#8a8a8a";
+
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {tooltip && <title>{tooltip}</title>}
+
       {/* Mounting ears */}
       {[-1, 1].map((side) => (
         <g key={side} transform={`translate(${side * bodyR * 0.85}, ${bodyCy - bodyR * 0.55})`}>
@@ -55,11 +76,11 @@ export function Stepper28byj48Part({ part, selected, pinStates, onPinClick }: St
         cx={0}
         cy={bodyCy}
         r={bodyR}
-        fill="#d4d6d8"
-        stroke={selected ? "#4da3ff" : "#8a8a8a"}
-        strokeWidth={selected ? 3 : 1.5}
+        fill={bodyFill}
+        stroke={bodyStroke}
+        strokeWidth={overloaded ? 2.5 : selected ? 3 : 1.5}
       />
-      <circle cx={0} cy={bodyCy} r={bodyR - 6} fill="none" stroke="#b8babc" strokeWidth={1} />
+      <circle cx={0} cy={bodyCy} r={bodyR - 6} fill="none" stroke={overloaded ? "#52453d" : "#b8babc"} strokeWidth={1} />
 
       {/* Rotor pointer */}
       <g transform={`rotate(${rotorAngle} 0 ${bodyCy})`}>
@@ -68,39 +89,41 @@ export function Stepper28byj48Part({ part, selected, pinStates, onPinClick }: St
           y1={bodyCy}
           x2={0}
           y2={bodyCy - bodyR + 14}
-          stroke="#717070"
+          stroke={overloaded ? "#3f3f46" : "#717070"}
           strokeWidth={6}
           strokeLinecap="round"
           opacity={0.9}
         />
       </g>
-      <circle cx={0} cy={bodyCy} r={4} fill="#717070" />
+      <circle cx={0} cy={bodyCy} r={4} fill={overloaded ? "#3f3f46" : "#717070"} />
+
+      {overloaded && <OvercurrentBurst cx={0} cy={bodyCy} size={bodyR * 1.6} />}
 
       {/* Silkscreen text */}
-      <text x={0} y={bodyCy - 12} textAnchor="middle" fontSize={9} fontWeight={800} fill="#0f766e" fontFamily="monospace">
+      <text x={0} y={bodyCy - 12} textAnchor="middle" fontSize={9} fontWeight={800} fill={overloaded ? "#7f1d1d" : "#0f766e"} fontFamily="monospace">
         STEP MOTOR
       </text>
-      <text x={0} y={bodyCy + 22} textAnchor="middle" fontSize={8} fontWeight={800} fill="#0f766e" fontFamily="monospace">
+      <text x={0} y={bodyCy + 22} textAnchor="middle" fontSize={8} fontWeight={800} fill={overloaded ? "#7f1d1d" : "#0f766e"} fontFamily="monospace">
         28BYJ-48
       </text>
-      <text x={0} y={bodyCy + 34} textAnchor="middle" fontSize={7} fontWeight={700} fill="#0f766e" fontFamily="monospace">
+      <text x={0} y={bodyCy + 34} textAnchor="middle" fontSize={7} fontWeight={700} fill={overloaded ? "#7f1d1d" : "#0f766e"} fontFamily="monospace">
         5VDC
       </text>
 
       {/* Blue base collar */}
-      <rect x={-14} y={bodyCy + bodyR - 14} width={28} height={18} rx={4} fill="#2563eb" stroke="#1d4ed8" strokeWidth={1.5} />
+      <rect x={-14} y={bodyCy + bodyR - 14} width={28} height={18} rx={4} fill={overloaded ? "#27272a" : "#2563eb"} stroke={overloaded ? CHARRED_STROKE : "#1d4ed8"} strokeWidth={1.5} />
 
       {/* Ribbon Wires running from motor blue collar to top of connector block */}
       {def.pins.map((pin, index) => {
         const exitOffset = -8 + (index / Math.max(1, def.pins.length - 1)) * 16;
         const targetX = pin.x * GRID;
-          
+
         return (
           <path
             key={`wire-${pin.id}`}
             d={`M ${exitOffset} ${collarY - 2} Q ${exitOffset} ${(collarY + connectorY) / 2}, ${targetX} ${connectorY}`}
             fill="none"
-            stroke={WIRE_COLORS[pin.id] ?? "#999"}
+            stroke={overloaded ? "#52525b" : WIRE_COLORS[pin.id] ?? "#999"}
             strokeWidth={3}
             strokeLinecap="round"
           />

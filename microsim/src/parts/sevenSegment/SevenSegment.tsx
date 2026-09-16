@@ -3,6 +3,7 @@ import type { PartInstance } from "../../types/types";
 import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { PinDot } from "../../components/parts/pin/PinDot";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 function hSeg(cx: number, cy: number, len: number, t: number) {
   const h = len / 2, ht = t / 2;
@@ -17,6 +18,8 @@ function vSeg(cx: number, cy: number, len: number, t: number) {
 const OFF_COLOR = "#2a1512";
 const ON_COLOR = "#ff8a1e";
 const ON_GLOW = "#ffb066";
+const CHARRED_BODY = "#1a1108";
+const CHARRED_STROKE = "#7f1d1d";
 
 interface SevenSegmentPartProps {
   part: PartInstance;
@@ -31,7 +34,6 @@ export function SevenSegmentPart({ part, selected, pinStates, netlist, onPinClic
   const halfW = (def.widthUnits * GRID) / 2;
   const halfH = (def.heightUnits * GRID) / 2;
 
-  // Digit geometry, in local px -- independent of the board's grid size.
   const dHalfW = 17;
   const dHalfH = 30;
   const thickness = 7;
@@ -48,12 +50,17 @@ export function SevenSegmentPart({ part, selected, pinStates, netlist, onPinClic
     seg_c: vSeg(dHalfW, dHalfH / 2, vLen, thickness),
   };
 
-  const isLit = (segId: string) => netlist?.isSevenSegmentLit(part.id, segId) ?? false;
-  const glow = (segId: string) =>
-    isLit(segId) ? { filter: `drop-shadow(0 0 3px ${ON_GLOW})` } : undefined;
+  // Same latch pattern as ResistorPart -- hasFlag alone would clear the
+  // instant resolveVoltage stops re-flagging a destroyed part.
+  const blown = (netlist?.hasFlag("sevenSegmentBlown", part.id) ?? false) || Boolean(part.properties?.destroyed);
+
+  const isLit = (segId: string) => !blown && (netlist?.isSevenSegmentLit(part.id, segId) ?? false);
+  const glow = (segId: string) => (isLit(segId) ? { filter: `drop-shadow(0 0 3px ${ON_GLOW})` } : undefined);
 
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      <title>7-Segment Display{blown ? " -- BURNED OUT" : ""}</title>
+
       {/* Black plastic body */}
       <rect
         x={-halfW}
@@ -61,29 +68,28 @@ export function SevenSegmentPart({ part, selected, pinStates, netlist, onPinClic
         width={halfW * 2}
         height={halfH * 2}
         rx={4}
-        fill="#111111"
-        stroke={selected ? "#4da3ff" : "#000000"}
-        strokeWidth={selected ? 2.5 : 1.5}
+        fill={blown ? CHARRED_BODY : "#111111"}
+        stroke={blown ? CHARRED_STROKE : selected ? "#4da3ff" : "#000000"}
+        strokeWidth={blown || selected ? 2.5 : 1.5}
       />
 
-      {Object.entries(segPoints).map(([segId, points]) => (
-        <polygon
-          key={segId}
-          points={points}
-          fill={isLit(segId) ? ON_COLOR : OFF_COLOR}
-          style={glow(segId)}
+      {!blown &&
+        Object.entries(segPoints).map(([segId, points]) => (
+          <polygon key={segId} points={points} fill={isLit(segId) ? ON_COLOR : OFF_COLOR} style={glow(segId)} />
+        ))}
+
+      {!blown && (
+        <circle
+          cx={dHalfW + 9}
+          cy={dHalfH + 3}
+          r={3.5}
+          fill={isLit("seg_dp") ? ON_COLOR : OFF_COLOR}
+          style={glow("seg_dp")}
         />
-      ))}
+      )}
 
-      {/* Decimal point, bottom-right of the digit -- matches the reference image */}
-      <circle
-        cx={dHalfW + 9}
-        cy={dHalfH + 3}
-        r={3.5}
-        fill={isLit("seg_dp") ? ON_COLOR : OFF_COLOR}
-        style={glow("seg_dp")}
-      />
-      
+      {blown && <OvercurrentBurst cx={0} cy={0} size={Math.max(halfW, halfH) * 1.2} />}
+
       {def.pins.map((pin) => (
         <PinDot
           key={pin.id}

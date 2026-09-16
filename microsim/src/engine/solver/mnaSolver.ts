@@ -1,3 +1,4 @@
+// engine/solver/mnaSolver.ts
 import type { ResistiveBranch, VoltageSourceBranch, CircuitSolution } from "./electricalTypes";
 
 const DEFAULT_SOURCE_SERIES_OHMS = 1;

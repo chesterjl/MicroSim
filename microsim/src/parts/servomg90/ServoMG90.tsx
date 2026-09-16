@@ -1,31 +1,51 @@
 import { GRID } from "../../types/types";
 import type { PartInstance } from "../../types/types";
-import type { NetState } from "../../engine/netlist";
+import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { useCircuitStore } from "../../store/circuitStore";
 import { Pin } from "../../components/parts/pin/Pin";
 import { PinLeg } from "../../components/parts/pin/PinLeg";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 interface ServoMG90PartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
+  netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function ServoMG90Part({ part, selected, pinStates, onPinClick }: ServoMG90PartProps) {
+const CHARRED_BODY = "#2a1b12";
+const CHARRED_STROKE = "#7f1d1d";
+
+export function ServoMG90Part({ part, selected, pinStates, netlist, onPinClick }: ServoMG90PartProps) {
   const def = partDefinitions["servo-mg90"];
+
+  const overloaded = netlist?.hasFlag("servoOverloaded", part.id) ?? false;
+  const reading = netlist?.getElectricalReading(part.id) ?? null;
+
+  const tooltip = reading
+    ? overloaded
+      ? `Servo MG90 -- BURNED OUT (${(reading.currentAmps * 1000).toFixed(0)}mA exceeded rated max)`
+      : `Servo MG90 -- ${(reading.currentAmps * 1000).toFixed(0)}mA @ ${reading.loopVoltage.toFixed(2)}V`
+    : undefined;
 
   const liveAngle = useCircuitStore((s) => s.servoAngles?.[part.id]);
   const staticAngle = (part.properties?.angle as number) ?? 90;
-  const angle = liveAngle ?? staticAngle;
+  // A stalled/burned-out servo freezes at its last commanded position
+  // instead of continuing to track new angle updates.
+  const angle = overloaded ? staticAngle : liveAngle ?? staticAngle;
 
   const hornRotation = angle - 90;
   const bodyWidth = 8 * GRID;
   const bodyTop = -7 * GRID;
 
+  const bodyFill = overloaded ? CHARRED_BODY : "#1684C4";
+  const bodyStroke = overloaded ? CHARRED_STROKE : selected ? "#4da3ff" : "#075985";
+
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {tooltip && <title>{tooltip}</title>}
 
       {/* Connector cable/neck */}
       <rect
@@ -71,9 +91,9 @@ export function ServoMG90Part({ part, selected, pinStates, onPinClick }: ServoMG
         width={bodyWidth}
         height={14 * GRID}
         rx={0.8 * GRID}
-        fill="#1684C4"
-        stroke={selected ? "#4da3ff" : "#075985"}
-        strokeWidth={selected ? 2 : 1.2}
+        fill={bodyFill}
+        stroke={bodyStroke}
+        strokeWidth={overloaded ? 2 : selected ? 2 : 1.2}
       />
 
       {/* Left mounting rail */}
@@ -83,8 +103,8 @@ export function ServoMG90Part({ part, selected, pinStates, onPinClick }: ServoMG
         width={1.3 * GRID}
         height={11 * GRID}
         rx={0.3 * GRID}
-        fill="#0F6FA8"
-        stroke="#075985"
+        fill={overloaded ? "#3a2418" : "#0F6FA8"}
+        stroke={overloaded ? CHARRED_STROKE : "#075985"}
         strokeWidth={0.8}
       />
 
@@ -95,16 +115,16 @@ export function ServoMG90Part({ part, selected, pinStates, onPinClick }: ServoMG
         width={1.3 * GRID}
         height={11 * GRID}
         rx={0.3 * GRID}
-        fill="#0F6FA8"
-        stroke="#075985"
+        fill={overloaded ? "#3a2418" : "#0F6FA8"}
+        stroke={overloaded ? CHARRED_STROKE : "#075985"}
         strokeWidth={0.8}
       />
 
       {/* Mounting holes */}
-      <circle cx={-4.15 * GRID} cy={-4.5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
-      <circle cx={4.15 * GRID} cy={-4.5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
-      <circle cx={-4.15 * GRID} cy={5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
-      <circle cx={4.15 * GRID} cy={5 * GRID} r={0.7 * GRID} fill="#0A5A88" stroke="#38BDF8" strokeWidth={0.7} />
+      <circle cx={-4.15 * GRID} cy={-4.5 * GRID} r={0.7 * GRID} fill={overloaded ? "#3a2418" : "#0F6FA8"} stroke={overloaded ? CHARRED_STROKE : "38BDF8"}  strokeWidth={0.7} />
+      <circle cx={4.15 * GRID} cy={-4.5 * GRID} r={0.7 * GRID} fill={overloaded ? "#3a2418" : "#0F6FA8"}  stroke={overloaded ? CHARRED_STROKE : "38BDF8"}  strokeWidth={0.7} />
+      <circle cx={-4.15 * GRID} cy={5 * GRID} r={0.7 * GRID} fill={overloaded ? "#3a2418" : "#0F6FA8"}  stroke={overloaded ? CHARRED_STROKE : "38BDF8"}  strokeWidth={0.7} />
+      <circle cx={4.15 * GRID} cy={5 * GRID} r={0.7 * GRID} fill={overloaded ? "#3a2418" : "#0F6FA8"}  stroke={overloaded ? CHARRED_STROKE : "38BDF8"}  strokeWidth={0.7} />
 
       {/* Gear / servo output */}
       <circle cx={0} cy={0} r={2.8 * GRID} fill="#E5E7EB" stroke="#6B7280" strokeWidth={1} />
@@ -139,8 +159,8 @@ export function ServoMG90Part({ part, selected, pinStates, onPinClick }: ServoMG
       <circle cx={0} cy={0} r={1.15 * GRID} fill="#D1D5DB" stroke="#6B7280" strokeWidth={0.8} />
       <circle cx={0} cy={0} r={0.45 * GRID} fill="#71717A" />
 
-      {/* Servo horn */}
-      <g transform={`rotate(${hornRotation})`} style={{ transition: "transform 30ms linear" }}>
+      {/* Servo horn -- frozen at last commanded angle when burned out */}
+      <g transform={`rotate(${hornRotation})`} style={{ transition: overloaded ? "none" : "transform 30ms linear" }}>
         <rect
           x={-0.6 * GRID}
           y={-7 * GRID}
@@ -157,6 +177,8 @@ export function ServoMG90Part({ part, selected, pinStates, onPinClick }: ServoMG
           <circle key={`horn-hole-${i}`} cx={0} cy={y * GRID} r={0.26 * GRID} fill="#6B7280" />
         ))}
       </g>
+
+      {overloaded && <OvercurrentBurst cx={0} cy={0} size={bodyWidth * 1.1} />}
 
       {/* Dynamically positioned Pins derived directly from config */}
       {def.pins.map((pin) => (

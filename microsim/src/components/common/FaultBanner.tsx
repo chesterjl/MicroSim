@@ -41,7 +41,7 @@ export function FaultBanner({ faultType, severity, message, onClose }: FaultBann
         <p className={`text-[9px] font-bold uppercase tracking-wide ${critical ? "text-red-300" : "text-amber-300"}`}>
           {FAULT_LABELS[faultType] ?? faultType}
         </p>
-        <p className="text-[11px] leading-snug mt-0.5 line-clamp-2">{message}</p>
+        <p className="text-[11px] leading-snug mt-0.5 max-h-32 overflow-y-auto">{message}</p>
       </div>
 
       <button

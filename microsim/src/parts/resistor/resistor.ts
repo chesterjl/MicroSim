@@ -1,4 +1,3 @@
-// parts/resistor/resistor.ts
 import type { ComponentModel } from "../../engine/componentModel";
 
 export const RESISTOR_RATED_WATTAGE_DEFAULT = 0.25; // watts -- standard 1/4W through-hole resistor
@@ -29,7 +28,7 @@ export const resistorModel: ComponentModel = {
       ohms: getOhms(part),
     });
   },
-  
+
   // Phase 7
   resolveVoltage(part, ctx) {
     const ohms = getOhms(part);

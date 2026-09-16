@@ -1,20 +1,42 @@
+// parts/rgbLed/RgbLed.tsx
 import { GRID } from "../../types/types";
 import type { PartInstance } from "../../types/types";
 import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { Pin } from "../../components/parts/pin/Pin";
 import { PinLeg } from "../../components/parts/pin/PinLeg";
-import { lerpColor } from "../../utils/color";
 import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
+import { lerpColor } from "../../utils/color";
 
-const CHANNEL_COLORS: Record<"red" | "green" | "blue", { off: string; on: string; glow: string }> = {
-  red: { off: "#3b1111", on: "#ff5555", glow: "#ff4444" },
-  green: { off: "#113b11", on: "#55ff55", glow: "#44ff44" },
-  blue: { off: "#11183b", on: "#5588ff", glow: "#4488ff" },
+type Channel = "red" | "green" | "blue";
+
+// Same values as led.tsx's COLOR_PALETTE for red/green/blue/white -- so a
+// single-channel RGB LED looks identical to a regular LED of that color.
+const CHANNEL_COLORS: Record<Channel, { off: string; on: string; glow: string }> = {
+  red: { off: "#3a0000", on: "#ff2222", glow: "#ff4444" },
+  green: { off: "#002400", on: "#22ff22", glow: "#44ff44" },
+  blue: { off: "#000a30", on: "#2266ff", glow: "#4488ff" },
 };
 
+// Explicit combo colors instead of additive blending -- keys are the
+// active channels sorted alphabetically ("blue+green", "blue+green+red", ...).
+const COMBINATION_COLORS: Record<string, { off: string; on: string; glow: string }> = {
+  "green+red": { off: "#302400", on: "#ffff22", glow: "#ffff44" },       // yellow
+  "blue+red": { off: "#300030", on: "#ff22ff", glow: "#ff44ff" },        // magenta
+  "blue+green": { off: "#003030", on: "#22ffff", glow: "#44ffff" },      // cyan
+  "blue+green+red": { off: "#2a2a2a", on: "#ffffff", glow: "#ffffff" },  // white -- matches led.tsx's white
+};
+
+const OFF_COLOR = "#151515";
 const CHARRED_BODY = "#151515";
-const CHARRED_DIE = "#1a1108";
+const ACTIVE_THRESHOLD = 0.005;
+
+function resolveColorTheme(active: Channel[]) {
+  if (active.length === 0) return null;
+  if (active.length === 1) return CHANNEL_COLORS[active[0]];
+  const key = [...active].sort().join("+");
+  return COMBINATION_COLORS[key] ?? CHANNEL_COLORS[active[0]];
+}
 
 interface RGBLedPartProps {
   part: PartInstance;
@@ -30,16 +52,29 @@ export function RgbLedPart({ part, selected, pinStates, netlist, onPinClick }: R
   const redBlown = netlist?.hasFlag("rgbLedBlown:red", part.id) ?? false;
   const greenBlown = netlist?.hasFlag("rgbLedBlown:green", part.id) ?? false;
   const blueBlown = netlist?.hasFlag("rgbLedBlown:blue", part.id) ?? false;
-  // If any channel exceeded its safe current, treat the whole package as
-  // destroyed -- a real RGB LED's dies share a package/substrate, so one
-  // channel burning out is a reasonable proxy for the whole part failing.
   const blown = redBlown || greenBlown || blueBlown;
 
   const redBrightness = blown ? 0 : netlist?.getRgbChannelBrightness(part.id, "red") ?? 0;
   const greenBrightness = blown ? 0 : netlist?.getRgbChannelBrightness(part.id, "green") ?? 0;
   const blueBrightness = blown ? 0 : netlist?.getRgbChannelBrightness(part.id, "blue") ?? 0;
 
-  const isLit = redBrightness > 0.005 || greenBrightness > 0.005 || blueBrightness > 0.005;
+  const activeChannels: Channel[] = [];
+  if (redBrightness > ACTIVE_THRESHOLD) activeChannels.push("red");
+  if (greenBrightness > ACTIVE_THRESHOLD) activeChannels.push("green");
+  if (blueBrightness > ACTIVE_THRESHOLD) activeChannels.push("blue");
+
+  const isLit = activeChannels.length > 0;
+  const colorTheme = resolveColorTheme(activeChannels);
+  // How intensely the resolved combo color shows -- driven by whichever
+  // channel is brightest, since a dim secondary channel shouldn't wash
+  // out a fully-lit primary one.
+  const overallBrightness = isLit ? Math.max(redBrightness, greenBrightness, blueBrightness) : 0;
+
+  const bodyColor = blown
+    ? CHARRED_BODY
+    : colorTheme
+    ? lerpColor(colorTheme.off, colorTheme.on, overallBrightness)
+    : OFF_COLOR;
 
   const centerOffsetX = 0.5 * GRID;
   const domeRadius = 1.8 * GRID;
@@ -54,12 +89,6 @@ export function RgbLedPart({ part, selected, pinStates, netlist, onPinClick }: R
     Z
   `;
 
-  const redDieColor = blown ? CHARRED_DIE : lerpColor(CHANNEL_COLORS.red.off, CHANNEL_COLORS.red.on, redBrightness);
-  const greenDieColor = blown ? CHARRED_DIE : lerpColor(CHANNEL_COLORS.green.off, CHANNEL_COLORS.green.on, greenBrightness);
-  const blueDieColor = blown ? CHARRED_DIE : lerpColor(CHANNEL_COLORS.blue.off, CHANNEL_COLORS.blue.on, blueBrightness);
-
-  const mixedTint = `rgb(${Math.round(255 * redBrightness)}, ${Math.round(255 * greenBrightness)}, ${Math.round(255 * blueBrightness)})`;
-
   const readingSummary = !blown
     ? `R:${(redBrightness * 100).toFixed(0)}% G:${(greenBrightness * 100).toFixed(0)}% B:${(blueBrightness * 100).toFixed(0)}%`
     : "BURNED OUT";
@@ -68,30 +97,34 @@ export function RgbLedPart({ part, selected, pinStates, netlist, onPinClick }: R
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
       <title>RGB LED -- {readingSummary}</title>
 
-      {isLit && !blown && (
-        <>
-          {redBrightness > 0.005 && (
-            <path d={domePathD} fill={CHANNEL_COLORS.red.glow} opacity={0.5 * redBrightness} style={{ filter: `blur(${2 + 6 * redBrightness}px)` }} className="pointer-events-none" />
-          )}
-          {greenBrightness > 0.005 && (
-            <path d={domePathD} fill={CHANNEL_COLORS.green.glow} opacity={0.5 * greenBrightness} style={{ filter: `blur(${2 + 6 * greenBrightness}px)` }} className="pointer-events-none" />
-          )}
-          {blueBrightness > 0.005 && (
-            <path d={domePathD} fill={CHANNEL_COLORS.blue.glow} opacity={0.5 * blueBrightness} style={{ filter: `blur(${2 + 6 * blueBrightness}px)` }} className="pointer-events-none" />
-          )}
-        </>
+      {isLit && !blown && colorTheme && (
+        <path
+          d={domePathD}
+          fill={colorTheme.glow}
+          opacity={0.6 * overallBrightness}
+          style={{ filter: `blur(${2 + 8 * overallBrightness}px)` }}
+          className="pointer-events-none"
+        />
       )}
 
-      <path d={domePathD} fill={blown ? CHARRED_BODY : "#151515"} stroke={blown ? "#7f1d1d" : selected ? "#4da3ff" : "#1a1a1a"} strokeWidth={blown || selected ? 2 : 1} />
+      <path
+        d={domePathD}
+        fill={bodyColor}
+        stroke={blown ? "#7f1d1d" : selected ? "#4da3ff" : "#1a1a1a"}
+        strokeWidth={blown || selected ? 2 : 1}
+      />
 
-      <ellipse cx={centerOffsetX} cy={-0.65 * GRID} rx={0.95 * GRID} ry={0.48 * GRID} fill="#252525" stroke="#333333" strokeWidth={1} opacity={0.9} className="pointer-events-none" />
-
-      <ellipse cx={centerOffsetX - 0.62 * GRID} cy={-0.7 * GRID} rx={0.48 * GRID} ry={0.36 * GRID} fill={redDieColor} className="pointer-events-none" style={redBrightness > 0.005 ? { filter: `blur(${1 + 2 * redBrightness}px)` } : undefined} />
-      <ellipse cx={centerOffsetX} cy={-0.7 * GRID} rx={0.48 * GRID} ry={0.36 * GRID} fill={greenDieColor} className="pointer-events-none" style={greenBrightness > 0.005 ? { filter: `blur(${1 + 2 * greenBrightness}px)` } : undefined} />
-      <ellipse cx={centerOffsetX + 0.62 * GRID} cy={-0.7 * GRID} rx={0.48 * GRID} ry={0.36 * GRID} fill={blueDieColor} className="pointer-events-none" style={blueBrightness > 0.005 ? { filter: `blur(${1 + 2 * blueBrightness}px)` } : undefined} />
-
-      {isLit && !blown && (
-        <path d={domePathD} fill={mixedTint} opacity={0.4} className="pointer-events-none" style={{ mixBlendMode: "screen" }} />
+      {isLit && !blown && colorTheme && (
+        <ellipse
+          cx={centerOffsetX}
+          cy={-0.9 * GRID}
+          rx={0.7 * GRID}
+          ry={0.55 * GRID}
+          fill={colorTheme.on}
+          opacity={Math.min(0.85, overallBrightness)}
+          className="pointer-events-none"
+          style={{ filter: `blur(${1 + 2 * overallBrightness}px)` }}
+        />
       )}
 
       {!blown && (

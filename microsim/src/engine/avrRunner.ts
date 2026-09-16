@@ -1,4 +1,3 @@
-// engine/avrRunner.ts
 import {CPU,avrInstruction,portBConfig,portDConfig,AVRUSART,AVRIOPort,AVRTimer,timer0Config,timer1Config,timer2Config,AVRADC,adcConfig,usart0Config,AVRTWI,twiConfig,PinState} from "avr8js";
 import type { PartInstance, Wire } from "../types/types";
 import { buildNetlist } from "./netlist";
@@ -30,8 +29,7 @@ export interface CircuitSnapshot {
   digitalPins: DigitalPinsSnapshot;
 }
 
-/**
- * Everything the runner needs from the outside world, and everything it
+/* Everything the runner needs from the outside world, and everything it
  * reports back. It never touches Zustand directly -- the store wires these
  * up to `set`/`get` so this file stays reusable (e.g. inside a worker later)
  */
@@ -50,11 +48,8 @@ export interface AVRRunnerCallbacks {
   onStepperAngleChange: (partId: string, angle: number) => void;
   onCapacitorVoltageChange: (partId: string, voltage: number) => void;
 
-
-  /** Sketch failed to compile, or setup blew up before the sim loop started. */
-  onCompileError: (message: string) => void;
-  /** The sim loop itself threw mid-run. */
-  onCrash: (message: string) => void;
+  onCompileError: (message: string) => void; // Sketch failed to compile, or setup blew up before the sim loop started.
+  onCrash: (message: string) => void; //  The sim loop itself threw mid-run.
 }
 
 const AVR_CLOCK_HZ = 16_000_000;
@@ -92,8 +87,7 @@ function syncSimpleDigitalInputs(
   }
 }
 
-/**
- * Owns one AVR CPU instance for the lifetime of a single simulation run:
+/* Owns one AVR CPU instance for the lifetime of a single simulation run:
  * compiling the sketch, wiring avr8js peripherals (ports/timers/ADC/USART/
  * TWI), spinning up every ExternalDevice, and driving the requestAnimationFrame
  * loop that ticks the CPU and resyncs it against the circuit's netlist.
@@ -116,8 +110,7 @@ export class AVRRunner {
   }
 
   async start(code: string): Promise<void> {
-    // Invalidate any previous run (in-flight compile or active frame loop).
-    this.stop();
+    this.stop(); // Invalidate any previous run (in-flight compile or active frame loop).
     stopAllBuzzers();
 
     const token = ++this.runToken;
@@ -256,65 +249,70 @@ export class AVRRunner {
         }
       };
 
-      const resyncDigitalInputs = (): Netlist | null => {
+      // Builds a fresh netlist off the live circuit snapshot. This is the single
+      // source of truth for anything that's purely electrical (power/ground
+      // resolution, brightness, buzzer sounding, capacitor charge, faults, ...).
+      // It intentionally has NO dependency on any microcontroller being present --
+      // a battery + active buzzer must work with zero MCUs on the canvas, exactly
+      // like a battery + LED already does.
+      const buildFrameNetlist = () => {
         const liveCircuit = this.callbacks.getCircuit();
-        const activeArduino = liveCircuit.parts.find((p) => p.type === "arduino-uno");
-        if (!activeArduino) return null;
-
         const liveNetlist = buildNetlist(liveCircuit.parts, liveCircuit.wires, liveCircuit.digitalPins, true);
+        return { netlist: liveNetlist, circuit: liveCircuit };
+      };
+
+      // Pushes circuit state INTO the CPU (ADC channels, INPUT pin levels). This
+      // is the one part of the sync that's genuinely MCU-specific -- there's
+      // nothing to push into if no microcontroller part exists. This is the ONLY
+      // place allowed to no-op on "no MCU found." When ESP32/RPi are added, they
+      // get their own sibling of this function -- buildFrameNetlist never changes.
+      const syncArduinoIO = (liveNetlist: Netlist, liveCircuit: CircuitSnapshot) => {
+        const activeArduino = liveCircuit.parts.find((p) => p.type === "arduino-uno");
+        if (!activeArduino) return;
 
         for (let i = 0; i <= 5; i++) {
           adc.channelValues[i] = liveNetlist.getAnalogVoltage(activeArduino.id, `a${i}`);
         }
         syncSimpleDigitalInputs(liveNetlist, activeArduino.id, cpu, portB, portD, claimedPins);
-        return liveNetlist;
       };
 
       const executeFrame = () => {
         if (!this.running || token !== this.runToken) return;
 
         try {
-          // Sample duty over the frame that just elapsed and push it into the
-          // circuit's digital-pin snapshot BEFORE this frame's instructions run.
-          // One frame of latency (~16ms) is imperceptible for visual brightness,
-          // and this cadence (60Hz) is what keeps duty a real average instead of
-          // a per-edge reset that would erase the averaging entirely.
           latestDuty = dutyTracker.sampleAndReset();
           emitDigitalPins();
 
-          const currentCircuit = this.callbacks.getCircuit();
-          const activeArduino = currentCircuit.parts.find((p) => p.type === "arduino-uno");
-          const frameNetlist = resyncDigitalInputs();
+          const { netlist: frameNetlist, circuit: currentCircuit } = buildFrameNetlist();
+          syncArduinoIO(frameNetlist, currentCircuit);
 
-          if (activeArduino && frameNetlist) {
-            for (const part of currentCircuit.parts) {
-              if (part.type !== "active-buzzer") continue;
+          // Netlist-only peripheral effects -- depend on power/ground reaching the
+          // part, never on a microcontroller existing. Keep this OUTSIDE any
+          // "is there an MCU" check, no matter how this loop grows later.
+          for (const part of currentCircuit.parts) {
+            if (part.type !== "active-buzzer") continue;
+            
+            const isSounding = frameNetlist.isActiveBuzzerSounding(part.id);
+            const toneHz = Number(part.properties?.toneHz ?? 2500);
+            const nextActive = isSounding;
+            const nextFrequency = isSounding ? toneHz : 0;
 
-              const isSounding = frameNetlist.isActiveBuzzerSounding(part.id);
-              const toneHz = Number(part.properties?.toneHz ?? 2500);
-              const nextActive = isSounding;
-              const nextFrequency = isSounding ? toneHz : 0;
-
-              const prev = this.callbacks.getBuzzerState(part.id);
-              if (!prev || prev.active !== nextActive || prev.frequency !== nextFrequency) {
-                this.callbacks.onBuzzerStateChange(part.id, { active: nextActive, frequency: nextFrequency });
-                if (nextActive) {
-                  setBuzzerTone(part.id, nextFrequency);
-                } else {
-                  stopBuzzerTone(part.id);
-                }
-              }
+            const prev = this.callbacks.getBuzzerState(part.id);
+            if (!prev || prev.active !== nextActive || prev.frequency !== nextFrequency) {
+              this.callbacks.onBuzzerStateChange(part.id, { active: nextActive, frequency: nextFrequency });
+              if (nextActive) setBuzzerTone(part.id, nextFrequency);
+              else stopBuzzerTone(part.id);
             }
+          }
 
-            for (const part of currentCircuit.parts) {
-              if (part.type !== "capacitor-polarized" && part.type !== "capacitor-nonpolarized") continue;
+          for (const part of currentCircuit.parts) {
+            if (part.type !== "capacitor-polarized" && part.type !== "capacitor-nonpolarized") continue;
 
-              const nextVoltage = computeNextCapacitorVoltage(part, frameNetlist, FRAME_DT_SECONDS);
-              const prevVoltage = Number(part.properties?.storedVoltage ?? 0);
+            const nextVoltage = computeNextCapacitorVoltage(part, frameNetlist, FRAME_DT_SECONDS);
+            const prevVoltage = Number(part.properties?.storedVoltage ?? 0);
 
-              if (Math.abs(nextVoltage - prevVoltage) > 0.001) {
-                this.callbacks.onCapacitorVoltageChange(part.id, nextVoltage);
-              }
+            if (Math.abs(nextVoltage - prevVoltage) > 0.001) {
+              this.callbacks.onCapacitorVoltageChange(part.id, nextVoltage);
             }
           }
 
@@ -331,8 +329,9 @@ export class AVRRunner {
             remaining -= batch;
             instructionsSinceResync += batch;
 
-            if (activeArduino && instructionsSinceResync >= DIGITAL_INPUT_RESYNC_INSTRUCTIONS) {
-              resyncDigitalInputs();
+            if (instructionsSinceResync >= DIGITAL_INPUT_RESYNC_INSTRUCTIONS) {
+              const resync = buildFrameNetlist();
+              syncArduinoIO(resync.netlist, resync.circuit);
               instructionsSinceResync = 0;
             }
           }

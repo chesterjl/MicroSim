@@ -4,6 +4,7 @@ import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { PinDot } from "../../components/parts/pin/PinDot";
 import { PinLabel } from "../../components/parts/pin/PinLabel";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 const TERMINAL_PIN_IDS = new Set(["no", "com", "nc"]);
 const HEADER_PIN_IDS = new Set(["vcc", "gnd", "in"]);
@@ -21,13 +22,25 @@ export function RelayPart({ part, selected, pinStates, netlist, onPinClick }: Re
   const halfW = (def.widthUnits * GRID) / 2;
   const halfH = (def.heightUnits * GRID) / 2;
 
-  const powered = netlist?.isPowered(part.id) ?? false;
+  const coilBurned = netlist?.hasFlag("relayCoilBurned", part.id) ?? false;
+  const contactsWelded = netlist?.hasFlag("relayContactsWelded", part.id) ?? false;
+
+  // PWR LED goes dark permanently once the coil dies, even if voltage is still applied.
+  const powered = (netlist?.isPowered(part.id) ?? false) && !coilBurned;
   const energized = netlist?.isRelayEnergized(part.id) ?? false;
 
   const headerEdgeX = -halfW;
 
+  const tooltip = coilBurned
+    ? "Relay -- COIL BURNED OUT. Stuck open (NC), won't energize."
+    : contactsWelded
+    ? `Relay -- CONTACTS WELDED at ${(part.properties?.weldedPosition as string) ?? "no"}. Stuck closed.`
+    : undefined;
+
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {tooltip && <title>{tooltip}</title>}
+
       <rect
         x={-halfW}
         y={-halfH}
@@ -35,8 +48,8 @@ export function RelayPart({ part, selected, pinStates, netlist, onPinClick }: Re
         height={halfH * 2}
         rx={6}
         fill="#ae260e"
-        stroke={selected ? "#4da3ff" : "#ae260e"}
-        strokeWidth={selected ? 2.5 : 1.5}
+        stroke={selected ? "#4da3ff" : coilBurned || contactsWelded ? "#7f1d1d" : "#ae260e"}
+        strokeWidth={selected || coilBurned || contactsWelded ? 2.5 : 1.5}
       />
 
       {/* Corner mounting holes */}
@@ -69,18 +82,40 @@ export function RelayPart({ part, selected, pinStates, netlist, onPinClick }: Re
         <text x={14} y={3} fontSize={6.5} fontWeight={700} fill="#f0fdf4" fontFamily="monospace">LED1</text>
       </g>
 
-      {/* Blue Relay Cube */}
-      <rect x={-32} y={-24} width={85} height={50} rx={4} fill="#2563eb" stroke="#1d4ed8" strokeWidth={1.5} />
+      {/* Blue Relay Cube -- chars over once the coil itself burns out */}
+      <rect
+        x={-32}
+        y={-24}
+        width={85}
+        height={50}
+        rx={4}
+        fill={coilBurned ? "#1c1c1c" : "#2563eb"}
+        stroke={coilBurned ? "#7f1d1d" : "#1d4ed8"}
+        strokeWidth={1.5}
+      />
       <text x={8} y={-2} textAnchor="middle" fontSize={11} fontWeight={800} fill="#ffffff" fontFamily="system-ui, sans-serif">
         Relay
       </text>
       <text x={8} y={9} textAnchor="middle" fontSize={6.5} fontWeight={600} fill="#dbeafe" fontFamily="system-ui, sans-serif">
         Module
       </text>
-      <circle cx={-18} cy={18} r={2.5} fill={energized ? "#facc15" : "#1e3a8a"} className="pointer-events-none" />
+      <circle cx={-18} cy={18} r={2.5} fill={energized && !coilBurned ? "#facc15" : "#1e3a8a"} className="pointer-events-none" />
 
-      {/* Right header container (terminal block) */}
-      <rect x={halfW - 30} y={-38} width={18} height={76} rx={3} fill="#2563eb" stroke="#1d4ed8" strokeWidth={1.2} />
+      {coilBurned && <OvercurrentBurst cx={8} cy={0} size={40} />}
+
+      {/* Right header (terminal block) -- scorched once contacts weld */}
+      <rect
+        x={halfW - 30}
+        y={-38}
+        width={18}
+        height={76}
+        rx={3}
+        fill={contactsWelded ? "#3a1010" : "#2563eb"}
+        stroke={contactsWelded ? "#7f1d1d" : "#1d4ed8"}
+        strokeWidth={1.2}
+      />
+
+      {contactsWelded && <OvercurrentBurst cx={halfW - 21} cy={0} size={30} />}
 
       {/* Left header connector */}
       <rect x={headerEdgeX + 18} y={-38} width={18} height={76} rx={3} fill="#2563eb" stroke="#1d4ed8" strokeWidth={1.2} />
@@ -101,7 +136,7 @@ export function RelayPart({ part, selected, pinStates, netlist, onPinClick }: Re
                 <circle cx={pin.x * GRID} cy={pin.y * GRID} r={4.5} fill="#f1f5f9" stroke="#0369a1" strokeWidth={1} className="pointer-events-none"/>
               </g>
             )}
-            
+
             <PinDot
               x={pin.x * GRID}
               y={pin.y * GRID}

@@ -1,6 +1,7 @@
 // parts/led/led.ts
 import type { ComponentModel } from "../../engine/componentModel";
 import { LED_FORWARD_VOLTAGE, DEFAULT_LED_FORWARD_VOLTAGE, DEFAULT_LED_RATED_CURRENT_AMPS, MAX_SAFE_CURRENT_AMPS, currentToBrightness, isOvercurrent } from "../../engine/physics/ohmsLaw";
+import { isPartElectricallyIsolated } from "../../engine/solver/isolation";
 const FORWARD_TOLERANCE = 0.01;
 
 export const ledModel: ComponentModel = {
@@ -12,6 +13,7 @@ export const ledModel: ComponentModel = {
 
   contributeElectricalBranches(part, ctx) {
     if (part.properties?.destroyed) return; // burned-out LED is an open circuit
+    if (isPartElectricallyIsolated(part, ctx.parts, ctx.electricalNodeId!)) return; // bare, unwired LED -- don't inject a floating source
 
     const color = ((part.properties?.color as string) ?? "red").toLowerCase();
     const forwardVoltageDrop = LED_FORWARD_VOLTAGE[color] ?? DEFAULT_LED_FORWARD_VOLTAGE;
@@ -23,15 +25,11 @@ export const ledModel: ComponentModel = {
       nodeB: ctx.electricalNodeId!(part.id, "cathode"),
       volts: forwardVoltageDrop,
       seriesOhms: 10.0,
+      isJunctionDrop: true,
     });
   },
 
-  /**
-   * Phase 7 -- moved out of getBrightness, which only runs when something
-   * happens to call netlist.getPartBrightness() for this exact part. This
-   * hook always runs once per solve, which is what makes the destructive
-   * "ledBlown" latch trustworthy every frame.
-   */
+  // Phase 7
   resolveVoltage(part, ctx) {
     const color = ((part.properties?.color as string) ?? "red").toLowerCase();
     const forwardVoltageDrop = LED_FORWARD_VOLTAGE[color] ?? DEFAULT_LED_FORWARD_VOLTAGE;

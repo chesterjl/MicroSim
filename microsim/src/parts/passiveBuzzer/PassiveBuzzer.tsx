@@ -4,6 +4,7 @@ import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { Pin } from "../../components/parts/pin/Pin";
 import { PinLeg } from "../../components/parts/pin/PinLeg";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 interface PassiveBuzzerPartProps {
   part: PartInstance;
@@ -13,114 +14,98 @@ interface PassiveBuzzerPartProps {
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function PassiveBuzzerPart({part, selected, pinStates, onPinClick}: PassiveBuzzerPartProps) {
+const CHARRED_BODY = "#1a1108";
+const CHARRED_STROKE = "#7f1d1d";
+
+export function PassiveBuzzerPart({ part, selected, pinStates, netlist, onPinClick }: PassiveBuzzerPartProps) {
   const def = partDefinitions["passive-buzzer"];
 
   const bodyRadius = 4 * GRID;
 
+  const overloaded = netlist?.hasFlag("buzzerOverloaded", part.id) ?? false;
+  const reversed = netlist?.hasFlag("passiveBuzzerReversed", part.id) ?? false;
+  const ready = netlist?.hasFlag("passiveBuzzerReady", part.id) ?? false;
+
+  const reading = netlist?.getElectricalReading(part.id) ?? null;
+
+  const tooltip = reading
+    ? overloaded
+      ? `Passive Buzzer -- BURNED OUT (${(reading.currentAmps * 1000).toFixed(1)}mA exceeded rated max)`
+      : `Passive Buzzer -- ${(reading.currentAmps * 1000).toFixed(1)}mA @ ${reading.loopVoltage.toFixed(2)}V${
+          reversed ? " (reversed, still works)" : ""
+        }${ready ? " (ready for tone())" : ""}`
+    : undefined;
+
+  const bodyFill = overloaded ? CHARRED_BODY : "#18181B";
+  const bodyStroke = overloaded ? CHARRED_STROKE : selected ? "#4da3ff" : "#09090B";
+
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {tooltip && <title>{tooltip}</title>}
 
       {/* Passive buzzer body */}
-      <circle
-        cx={0}
-        cy={0}
-        r={bodyRadius}
-        fill="#18181B"
-        stroke={selected ? "#4da3ff" : "#09090B"}
-        strokeWidth={selected ? 2 : 1.5}
-      />
+      <circle cx={0} cy={0} r={bodyRadius} fill={bodyFill} stroke={bodyStroke} strokeWidth={overloaded ? 2 : selected ? 2 : 1.5} />
 
-      <circle
-        cx={0}
-        cy={0}
-        r={3.25 * GRID}
-        fill="#202024"
-        stroke="#3F3F46"
-        strokeWidth={1}
-      />
+      {!overloaded && (
+        <>
+          <circle cx={0} cy={0} r={3.25 * GRID} fill="#202024" stroke="#3F3F46" strokeWidth={1} />
 
-      {/* Speaker */}
-      <circle
-        cx={0}
-        cy={0}
-        r={2.15 * GRID}
-        fill="#09090B"
-        stroke="#52525B"
-        strokeWidth={1}
-      />
+          {/* Speaker */}
+          <circle cx={0} cy={0} r={2.15 * GRID} fill="#09090B" stroke="#52525B" strokeWidth={1} />
+          <circle cx={0} cy={0} r={1.35 * GRID} fill="#18181B" />
+          <circle cx={0} cy={0} r={0.55 * GRID} fill="#09090B" />
 
-      <circle
-        cx={0}
-        cy={0}
-        r={1.35 * GRID}
-        fill="#18181B"
-      />
+          {/* Speaker ring */}
+          <path
+            d={`M ${-1.7 * GRID} ${-0.9 * GRID} A ${1.9 * GRID} ${1.9 * GRID} 0 0 1 ${1.7 * GRID} ${-0.9 * GRID}`}
+            fill="none"
+            stroke="#52525B"
+            strokeWidth={0.7}
+          />
+          <path
+            d={`M ${-1.7 * GRID} ${0.9 * GRID} A ${1.9 * GRID} ${1.9 * GRID} 0 0 0 ${1.7 * GRID} ${0.9 * GRID}`}
+            fill="none"
+            stroke="#52525B"
+            strokeWidth={0.7}
+          />
 
-      <circle
-        cx={0}
-        cy={0}
-        r={0.55 * GRID}
-        fill="#09090B"
-      />
+          {/* Passive/frequency symbol */}
+          <text
+            x={0}
+            y={-2.45 * GRID}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#A1A1AA"
+            fontSize={1.2 * GRID}
+            fontWeight="bold"
+            pointerEvents="none"
+          >
+            ~
+          </text>
+        </>
+      )}
 
-      {/* Speaker ring */}
-      <path
-        d={`
-          M ${-1.7 * GRID} ${-0.9 * GRID}
-          A ${1.9 * GRID} ${1.9 * GRID} 0 0 1
-          ${1.7 * GRID} ${-0.9 * GRID}
-        `}
-        fill="none"
-        stroke="#52525B"
-        strokeWidth={0.7}
-      />
-
-      <path
-        d={`
-          M ${-1.7 * GRID} ${0.9 * GRID}
-          A ${1.9 * GRID} ${1.9 * GRID} 0 0 0
-          ${1.7 * GRID} ${0.9 * GRID}
-        `}
-        fill="none"
-        stroke="#52525B"
-        strokeWidth={0.7}
-      />
-
-      {/* Passive/frequency symbol */}
-      <text
-        x={0}
-        y={-2.45 * GRID}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#A1A1AA"
-        fontSize={1.2 * GRID}
-        fontWeight="bold"
-        pointerEvents="none"
-      >
-        ~
-      </text>
-
-      {/* Polarity markings - aligned */}
+      {/* Polarity markings -- dim once burned out; a piezo doesn't care
+          which way round it's wired, so no orange reversed-tint here
+          the way the active buzzer gets one. */}
       <text
         x={-2.7 * GRID}
         y={2.5 * GRID}
         textAnchor="middle"
         dominantBaseline="middle"
-        fill="#EF4444"
+        fill={overloaded ? "#7f1d1d" : "#EF4444"}
         fontSize={1.5 * GRID}
         fontWeight="bold"
         pointerEvents="none"
       >
         +
       </text>
-
       <text
         x={2.7 * GRID}
         y={2.5 * GRID}
         textAnchor="middle"
         dominantBaseline="middle"
-        fill="#A1A1AA"
+        fill={overloaded ? "#52525B" : "#A1A1AA"}
         fontSize={1.5 * GRID}
         fontWeight="bold"
         pointerEvents="none"
@@ -128,9 +113,11 @@ export function PassiveBuzzerPart({part, selected, pinStates, onPinClick}: Passi
         −
       </text>
 
+      {overloaded && <OvercurrentBurst cx={0} cy={0} size={bodyRadius * 1.4} />}
+
       {def.pins.map((pin) => (
         <g key={pin.id}>
-          <PinLeg x1={pin.x * GRID} y1={bodyRadius} x2={pin.x * GRID} y2={5 * GRID}/>
+          <PinLeg x1={pin.x * GRID} y1={bodyRadius} x2={pin.x * GRID} y2={5 * GRID} />
           <Pin
             x={pin.x * GRID}
             y={5 * GRID}

@@ -33,7 +33,7 @@ export function PhotoresistorPart({ part, selected, pinStates, netlist, onPinCli
       ? "Photoresistor -- OVERLOADED (exceeded rated wattage)"
       : `Photoresistor -- ${(reading.currentAmps * 1000).toFixed(1)}mA`
     : undefined;
-
+  
   const bodyRx = 1.6 * GRID;
   const bodyRy = 1.3 * GRID;
 

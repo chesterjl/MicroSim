@@ -3,6 +3,7 @@ import type { PartInstance, Wire } from "../../types/types";
 import { partDefinitions } from "../../config/partDefinitions";
 import { getResolvedPins } from "../physics/geometry";
 import { UnionFind } from "../unionFind";
+import { getComponentModel } from "../modelRegistry";
 
 export const BREADBOARD_CONTACT_EPSILON_PX = 2;
 
@@ -44,6 +45,23 @@ export function buildElectricalGraph(
 
     for (const pin of def.pins) {
       uf.find(pinKey(part.id, pin.id));
+    }
+  }
+
+
+  // 1.5. Component-declared physical pin aliases (e.g. a seven-segment
+  // display's com1/com2 -- two solder points for the SAME physical pin).
+  // These are always the same node by hardware design, independent of how
+  // the user wires the part -- NOT a digital-only or conditional short
+  // like a resistor's two legs, which must stay separate here (see the
+  // note above buildElectricalGraph). Skipping this step means the
+  // model's contributeElectricalBranches can reference a node that a real
+  // wire never actually touches -- exactly the bug this fixes.
+  for (const part of parts) {
+    const aliases = getComponentModel(part.type)?.electricalAliases?.(part);
+    if (!aliases) continue;
+    for (const [pinA, pinB] of aliases) {
+      uf.union(pinKey(part.id, pinA), pinKey(part.id, pinB));
     }
   }
 

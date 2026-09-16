@@ -1,24 +1,45 @@
 import { GRID } from "../../types/types";
 import type { PartInstance } from "../../types/types";
-import type { NetState } from "../../engine/netlist";
+import type { Netlist, NetState } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { PinDot } from "../../components/parts/pin/PinDot";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 interface ArduinoUnoPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
   isSimulating?: boolean;
+  netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinClick}: ArduinoUnoPartProps) {
+const CHARRED_PCB = "#241a12";
+const CHARRED_STROKE = "#7f1d1d";
+
+export function ArduinoUnoPart({part, selected, pinStates, isSimulating, netlist, onPinClick}: ArduinoUnoPartProps) {
   const def = partDefinitions["arduino-uno"];
   const halfW = (def.widthUnits * GRID) / 2;
   const halfH = (def.heightUnits * GRID) / 2;
 
+  
+  const destroyed = Boolean(part.properties?.destroyed);
+  const overloadedPins = def.pins.filter(
+    (pin) => /^d\d+$/.test(pin.id) && (netlist?.hasFlag(`arduinoPinOverloaded:${pin.id}`, part.id) ?? false)
+  );
+
+  const pcbFill = destroyed ? CHARRED_PCB : "#377bc4";
+  const pcbStroke = destroyed ? CHARRED_STROKE : selected ? "#4da3ff" : "#006670";
+
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+
+      {destroyed && (
+        <title>
+          {`Arduino Uno -- damaged (${overloadedPins.map((p) => p.label).join(", ") || "one or more pins"} overloaded)`}
+        </title>
+      )}
+      
       {/* USB-B port, left edge */}
       <g transform={`translate(${-halfW - 20}, ${-halfH + 22})`}>
         <rect width={22} height={34} rx={2} fill="#c9c9c9" stroke="#8a8a8a" strokeWidth={1} />
@@ -55,8 +76,8 @@ export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinCl
         width={halfW * 2}
         height={halfH * 2}
         rx={9}
-        fill="#377bc4"
-        stroke={selected ? "#4da3ff" : "#006670"}
+        fill={pcbFill}
+        stroke={pcbStroke}
         strokeWidth={selected ? 3 : 2}
       />
       <rect
@@ -142,6 +163,8 @@ export function ArduinoUnoPart({part, selected, pinStates, isSimulating, onPinCl
       <rect x={-halfW + 110} y={-halfH + 3} width={halfW * 2 - 122} height={13} rx={1} fill="#111827" />
       <rect x={-halfW + 110} y={halfH - 16} width={halfW * 2 - 122} height={13} rx={1} fill="#111827" />
 
+
+      {overloadedPins.map((pin) => (<OvercurrentBurst key={`burst-${pin.id}`} cx={pin.x * GRID} cy={pin.y * GRID} size={GRID * 2.5} />))}
       {/* Every pin: header pocket + interactive dot (hover tooltip built
           into PinDot) + a larger, bolder printed label than before */}
       {def.pins.map((pin) => {

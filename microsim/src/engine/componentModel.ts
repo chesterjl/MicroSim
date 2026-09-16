@@ -3,17 +3,11 @@ import type { NetState } from "./netlist";
 import type { OhmsLawReading } from "./physics/ohmsLaw";
 import type { ResistiveBranch, VoltageSourceBranch } from "./solver/electricalTypes";
 
+// What an Arduino/digital pin looks like
 export interface DigitalPinState {
   mode: "INPUT" | "OUTPUT" | "INPUT_PULLUP";
   value: "HIGH" | "LOW";
-  /**
-   * Fraction of time (0..1) this OUTPUT pin actually spends HIGH, averaged
-   * over the last sample window -- populated by PinDutyTracker so
-   * analogWrite()'s PWM resolves to a real average instead of one
-   * arbitrary instant. Undefined for INPUT/INPUT_PULLUP pins, and treated
-   * as the binary value (1 for HIGH, 0 for LOW) wherever it's missing, so
-   * nothing else has to special-case its absence.
-   */
+  // This lets PWM be represented as an average rather than an arbitrary instantaneous HIGH/LOW state.
   dutyCycle?: number;
 }
 
@@ -22,34 +16,22 @@ export interface UnionFindLike {
   union(a: string, b: string): void;
 }
 
-/**
- * Mutable, single-pass state shared by every ComponentModel hook while one buildNetlist() call is in flight.
- *
- * IMPORTANT INVARIANT: netGround / netPower / netDrivenHigh / netDrivenLow /
- * netPullup are keyed by union-find ROOT at the moment they're populated.
- * If a later uf.union() call merges an already-recorded root under a new
- * parent, the Set/Map entry goes stale (uf.find() will return the new
- * parent, but the Set still has the old key). That's why every structural
- * union that touches a ground/power/digital-typed pin MUST happen in the
- * `connect` phase, before the generic ground/power collection pass runs.
- * `postResolve` unions (relay's com->no/nc) are only safe because relay's
- * own pins aren't ground/power typed -- if you add a model whose
- * postResolve union touches a power/ground pin, you will reintroduce this
- * bug. When in doubt, put structural unions in `connect`.
- */
+// What the component is allowed to access. This is given for every component.
 export interface SimContext {
   parts: PartInstance[];
   wires: Wire[];
   digitalPins: Record<number, DigitalPinState>;
   isRunning: boolean;
-  uf: UnionFindLike;
 
+  // The Union-Find data
+  uf: UnionFindLike;
   netGround: Set<string>;
   netPower: Set<string>;
   netDrivenHigh: Set<string>;
   netDrivenLow: Set<string>;
-  netPullup: Set<string>;
+  netPullup: Set<string>; 
   
+  // Voltage maps
   netVoltageSource: Map<string, number>; // root -> volts, REAL sources only (battery, arduino rails)
   netFallbackVoltage: Map<string, number>; // root -> volts, soft sources (capacitors) -- kept OUT of netVoltageSource on purpose
   netFallbackHigh: Set<string>;
@@ -57,34 +39,37 @@ export interface SimContext {
   
   key(partId: string, pinId: string): string; // Raw union-find key for a pin -- pass to uf.union()/uf.find() directly.
   pinRoot(partId: string, pinId: string): string; // uf.find() shorthand.
-  resolveNetState(root: string): NetState; // Only meaningful once the drive/driveAfterPower phases have run.
-  resolveNetVoltage(root: string): number; // Only meaningful once netVoltageOverride is in its final state (resolveVoltage phase and later).
   
-  /** Generic per-part-id boolean flag bag, e.g. "relayEnergized" -- avoids the Netlist interface growing a bespoke Set for every new component. */
+  resolveNetState(root: string): NetState; // this ask if the net is HIGH, LOW, or FLOATING?
+  resolveNetVoltage(root: string): number;  // This is the analog equivalent. Insteead of HIGH, LOW, FLOATING you get 5.0 V, 2.6V or 0V
+
+  // Flags
+  /* Generic per-part-id boolean flag bag, e.g. "relayEnergized" -- avoids the Netlist interface growing a bespoke Set for every new component. */
   setFlag(flagName: string, partId: string): void;
   hasFlag(flagName: string, partId: string): boolean;
 
-  /** Sums resistive contributions (resistors, potentiometers, photoresistors,
+  /* Sums resistive contributions (resistors, potentiometers, photoresistors,
    * etc.) whose own pin roots intersect `roots`, by delegating to each
    * part's seriesResistanceContribution hook. Used by Phase E hooks
    * (getBrightness / getChannelBrightness) -- meaningful any time after Phase A `connect` unions have run. */
   sumSeriesResistance(roots: Set<string>): number;
 
+  // Electrical readings. These are for things like: Voltage, Current, Resistance, Power 
   setElectricalReading(partId: string, reading: OhmsLawReading): void;
   getElectricalReading(partId: string): OhmsLawReading | null;
 
-  // Phase 5/6 -- pin -> electrical (MNA) node id, separate from the digital `uf` above. Always non-null once `contributeElectricalBranches` starts being called; call it via `ctx.electricalNodeId!(...)` from inside that hook. 
+  // Phase 5/6 -- pin -> electrical (MNA) node id, separate from the digital `uf` above. 
+  // Digital System uses HIGH, LOW, FLOATING and the electrical solver (MNA) use real electrical value e.g 5V, 3.2V, 18mA
   electricalNodeId: ((partId: string, pinId: string) => number) | null;
-  // Registers one resistive (Ohm's-law) branch between two electrical nodes. Only call from `contributeElectricalBranches`. 
-  addResistiveBranch(branch: ResistiveBranch): void;
-  // Registers one ideal voltage source -- battery, Arduino rail, or (when conducting) an LED's forward-voltage-drop branch. Only call from `contributeElectricalBranches`. 
-  addVoltageSource(source: VoltageSourceBranch): void;
-  // Solved node voltage -- only meaningful AFTER the MNA solve runs, i.e. inside `getBrightness`/`getChannelBrightness`, never inside `contributeElectricalBranches` itself (the network hasn't been solved yet at that point). 
-  getNodeVoltage(partId: string, pinId: string): number;
+  addResistiveBranch(branch: ResistiveBranch): void; // Registers one resistive (Ohm's-law) branch between two electrical nodes.
+  addVoltageSource(source: VoltageSourceBranch): void; // Registers one ideal voltage source - battery, Arduino rail, or (when conducting) an LED's forward-voltage-drop branch.
+  
+  getNodeVoltage(partId: string, pinId: string): number; // Solved node voltage - only meaningful AFTER the MNA solve finishes.
   // Current (amps) through a voltage-source branch, looked up by the `id` passed to `addVoltageSource`. */
   getSourceCurrent(sourceId: string): number;
 }
 
+// What a component is allowed | implement to do  
 export interface ComponentModel {
   /* Phase A -- pure topology. Union-find merges that depend only on this
    * part's own static properties (a resistor always shorts pin1<->pin2, a
@@ -114,7 +99,7 @@ export interface ComponentModel {
    * that synthesize a derived analog voltage rather than just being HIGH/
    * LOW/floating (potentiometer wiper, joystick axes). */
   resolveVoltage?(part: PartInstance, ctx: SimContext): void;
-
+  
   contributeElectricalBranches?(part: PartInstance, ctx: SimContext): void;
   /* Used by the generic ground/power collection pass for any pin typed
    * "power" on this part. Return null to fall through to the global
@@ -142,4 +127,18 @@ export interface ComponentModel {
    * the generic ctx.sumSeriesResistance() helper -- return 0/undefined if
    * this part isn't a resistive element on that net. */
   seriesResistanceContribution?(part: PartInstance, roots: Set<string>, ctx: SimContext): number;
+
+  /**
+   * Pin pairs that are the SAME physical electrical node regardless of how
+   * the part is wired -- e.g. a seven-segment display's com1/com2 are two
+   * solder points for one shared pin, not two independently-wireable pins.
+   * Consulted by buildElectricalGraph() (NOT ctx.uf/connect()) so the MNA
+   * solver treats them as one node even if the user's wire only touches
+   * one of the two. Do NOT use this for anything that's only conditionally
+   * the same node (a resistor's two legs, a pushbutton's bridged pins when
+   * pressed) -- those depend on runtime state and belong in connect()
+   * against ctx.uf instead. This is only for pins that are ALWAYS the same
+   * physical node by hardware design, independent of wiring or state.
+   */
+  electricalAliases?(part: PartInstance): Array<[string, string]>;
 }

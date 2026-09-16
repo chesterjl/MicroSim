@@ -1,23 +1,38 @@
 import React from 'react';
 import { GRID } from "../../types/types";
 import type { PartInstance } from "../../types/types";
-import type { NetState } from "../../engine/netlist";
+import type { NetState, Netlist } from "../../engine/netlist";
 import { partDefinitions } from "../../config/partDefinitions";
 import { Pin } from "../../components/parts/pin/Pin";
 import { PinLeg } from "../../components/parts/pin/PinLeg";
+import { OvercurrentBurst } from "../../components/parts/effects/OvercurrentBurst";
 
 interface DcGearMotorPartProps {
   part: PartInstance;
   selected: boolean;
   pinStates?: Record<string, NetState>;
+  netlist?: Netlist;
   onPinClick?: (pinId: string, e: React.MouseEvent) => void;
 }
 
-export function DcGearMotorPart({ part, selected, pinStates, onPinClick }: DcGearMotorPartProps) {
+const CHARRED_GEARBOX = "#3a3120";
+const CHARRED_STROKE = "#7f1d1d";
+
+export function DcGearMotorPart({ part, selected, pinStates, netlist, onPinClick }: DcGearMotorPartProps) {
   const def = partDefinitions["dc-gearmotor"];
 
-  const isForward = pinStates?.positive === "HIGH" && pinStates?.negative === "LOW";
-  const isReversed = pinStates?.positive === "LOW" && pinStates?.negative === "HIGH";
+  const overloaded = netlist?.hasFlag("dcMotorOverloaded", part.id) ?? false;
+  const reading = netlist?.getElectricalReading(part.id) ?? null;
+
+  const tooltip = reading
+    ? overloaded
+      ? `DC Gear Motor -- BURNED OUT (${(reading.currentAmps * 1000).toFixed(0)}mA exceeded rated max)`
+      : `DC Gear Motor -- ${(reading.currentAmps * 1000).toFixed(0)}mA @ ${reading.loopVoltage.toFixed(2)}V`
+    : undefined;
+
+  // A burned-out winding can't spin regardless of pin state.
+  const isForward = !overloaded && pinStates?.positive === "HIGH" && pinStates?.negative === "LOW";
+  const isReversed = !overloaded && pinStates?.positive === "LOW" && pinStates?.negative === "HIGH";
   const isSpinning = isForward || isReversed;
 
   const gearboxW = 66;
@@ -38,8 +53,13 @@ export function DcGearMotorPart({ part, selected, pinStates, onPinClick }: DcGea
   const negPin = def.pins.find((p) => p.id === "negative") ?? def.pins[0];
   const posPin = def.pins.find((p) => p.id === "positive") ?? def.pins[1];
 
+  const gearboxFill = overloaded ? CHARRED_GEARBOX : "#f4d128";
+  const gearboxStroke = overloaded ? CHARRED_STROKE : selected ? "#4da3ff" : "#c9a916";
+
   return (
     <g transform={`translate(${part.x}, ${part.y}) rotate(${part.rotation ?? 0})`}>
+      {tooltip && <title>{tooltip}</title>}
+
       <style>
         {`
           @keyframes pitchRotationForward {
@@ -85,7 +105,7 @@ export function DcGearMotorPart({ part, selected, pinStates, onPinClick }: DcGea
       </style>
 
       {/* Top shaft nub */}
-      <rect x={-6} y={gearboxTop - 15} width={12} height={15} rx={2} fill="#f4d128" />
+      <rect x={-6} y={gearboxTop - 15} width={12} height={15} rx={2} fill={overloaded ? CHARRED_GEARBOX : "#f4d128"} />
 
       {/* Yellow gearbox body */}
       <rect
@@ -94,9 +114,9 @@ export function DcGearMotorPart({ part, selected, pinStates, onPinClick }: DcGea
         width={gearboxW}
         height={gearboxBottom - gearboxTop}
         rx={6}
-        fill="#f4d128"
-        stroke={selected ? "#4da3ff" : "#c9a916"}
-        strokeWidth={selected ? 2.5 : 1.2}
+        fill={gearboxFill}
+        stroke={gearboxStroke}
+        strokeWidth={overloaded ? 2 : selected ? 2.5 : 1.2}
       />
 
       {/* 1. LEFT DUAL-WING ROTOR ASSEMBLY */}
@@ -140,13 +160,15 @@ export function DcGearMotorPart({ part, selected, pinStates, onPinClick }: DcGea
         }`}
         style={{ transformOrigin: `0px ${gearboxTop + 40}px` }}
       >
-        <circle cx={0} cy={gearboxTop + 40} r={10} fill="#eab308" stroke="#ca8a04" strokeWidth={1.5} />
+        <circle cx={0} cy={gearboxTop + 40} r={10} fill={overloaded ? "#52525b" : "#eab308"} stroke={overloaded ? "#27272a" : "#ca8a04"} strokeWidth={1.5} />
         <line x1={0} y1={gearboxTop + 32} x2={0} y2={gearboxTop + 48} stroke="#ffffff" strokeWidth={2.5} strokeLinecap="round" />
         <line x1={-8} y1={gearboxTop + 40} x2={8} y2={gearboxTop + 40} stroke="#ffffff" strokeWidth={2.5} strokeLinecap="round" />
       </g>
 
+      {overloaded && <OvercurrentBurst cx={0} cy={gearboxTop + 40} size={gearboxW * 1.2} />}
+
       {/* Small side tab */}
-      <rect x={gearboxW / 2 - 2} y={gearboxTop + 82} width={6} height={20} rx={2} fill="#f4d128" stroke="#c9a916" strokeWidth={1} />
+      <rect x={gearboxW / 2 - 2} y={gearboxTop + 82} width={6} height={20} rx={2} fill={overloaded ? CHARRED_GEARBOX : "#f4d128"} stroke={overloaded ? CHARRED_STROKE : "#c9a916"} strokeWidth={1} />
 
       {/* Gray motor housing collar */}
       <rect

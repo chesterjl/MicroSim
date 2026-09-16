@@ -15,7 +15,9 @@ import { pushbuttonModel } from "../parts/pushbutton/pushbutton";
 import { relayModel } from "../parts/relay/relay";
 import { resistorModel } from "../parts/resistor/resistor";
 import { rgbLedModel } from "../parts/rgbLed/rgbLed";
+import { servoMg90Model } from "../parts/servomg90/servoMg90";
 import { sevenSegmentModel } from "../parts/sevenSegment/sevenSegment";
+import { stepper28byj48Model } from "../parts/stepper28byj48/stepper28byj48";
 import { toggleSwitchModel } from "../parts/toggleSwitch/toggleSwitch";
 import { uln2003Model } from "../parts/uln2003Driver/ul2003Driver";
 import type { ComponentModel } from "./componentModel";
@@ -43,7 +45,9 @@ export const componentModelRegistry: Record<string, ComponentModel> = {
     "resistor": resistorModel,
     "seven-segment": sevenSegmentModel,
     "toggle-switch": toggleSwitchModel,
-    "uln2003-driver": uln2003Model
+    "uln2003-driver": uln2003Model,
+    "servo-mg90": servoMg90Model,
+    "stepper-28byj48": stepper28byj48Model,
 };
 
 export function getComponentModel(type: string): ComponentModel | undefined {
