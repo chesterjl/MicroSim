@@ -256,6 +256,9 @@ export function buildNetlist(
     circuitSolution,
     netDrivenHigh,
     netDrivenLow,
+    netGround,
+    netPower,
+    ctx.pinRoot,
     ctx.hasFlag
   );
 
@@ -263,7 +266,7 @@ export function buildNetlist(
     const targetRoot = uf.find(pinKey(partId, pinId));
     for (const part of parts) {
       if (part.type !== "arduino-uno") continue;
-      for (let i = 0; i <= 13; i++) {
+      for (let i = 0; i <= 13; i++) { 
         if (uf.find(pinKey(part.id, `d${i}`)) === targetRoot) return i;
       }
     }

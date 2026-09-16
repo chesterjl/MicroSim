@@ -1,7 +1,7 @@
 // parts/led/led.ts
 import type { ComponentModel } from "../../engine/componentModel";
 import { LED_FORWARD_VOLTAGE, DEFAULT_LED_FORWARD_VOLTAGE, DEFAULT_LED_RATED_CURRENT_AMPS, MAX_SAFE_CURRENT_AMPS, currentToBrightness, isOvercurrent } from "../../engine/physics/ohmsLaw";
-import { isPartElectricallyIsolated } from "../../engine/solver/isolation";
+import { isPartFloatingFromReference } from "../../engine/solver/isolation";
 const FORWARD_TOLERANCE = 0.01;
 
 export const ledModel: ComponentModel = {
@@ -13,7 +13,7 @@ export const ledModel: ComponentModel = {
 
   contributeElectricalBranches(part, ctx) {
     if (part.properties?.destroyed) return; // burned-out LED is an open circuit
-    if (isPartElectricallyIsolated(part, ctx.parts, ctx.electricalNodeId!)) return; // bare, unwired LED -- don't inject a floating source
+    if (isPartFloatingFromReference(part, ctx.netGround, ctx.netPower, ctx.pinRoot)) return; // no path to any voltage reference -- true floating loop
 
     const color = ((part.properties?.color as string) ?? "red").toLowerCase();
     const forwardVoltageDrop = LED_FORWARD_VOLTAGE[color] ?? DEFAULT_LED_FORWARD_VOLTAGE;
@@ -28,6 +28,7 @@ export const ledModel: ComponentModel = {
       isJunctionDrop: true,
     });
   },
+
 
   // Phase 7
   resolveVoltage(part, ctx) {

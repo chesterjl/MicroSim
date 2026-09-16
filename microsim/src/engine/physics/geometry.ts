@@ -1,3 +1,4 @@
+// engine/physics/geometry.ts
 import { GRID } from "../../types/types";
 import type { PartInstance, ResolvedPin } from "../../types/types";
 import { partDefinitions } from "../../config/partDefinitions";

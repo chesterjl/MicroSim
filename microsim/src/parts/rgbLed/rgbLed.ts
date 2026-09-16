@@ -1,7 +1,7 @@
 import type { ComponentModel, SimContext } from "../../engine/componentModel";
 import type { PartInstance } from "../../types/types";
 import { currentToBrightness, isOvercurrent, MAX_SAFE_CURRENT_AMPS, DEFAULT_LED_RATED_CURRENT_AMPS } from "../../engine/physics/ohmsLaw";
-import { isPartElectricallyIsolated } from "../../engine/solver/isolation";
+import { isPartFloatingFromReference } from "../../engine/solver/isolation";
 
 const RGB_CHANNEL_FORWARD_VOLTAGE: Record<string, number> = {
   red: 2.0,
@@ -45,7 +45,7 @@ function lowestVfWinner(group: Channel[]): Channel {
 
 export const rgbLedModel: ComponentModel = {
   contributeElectricalBranches(part, ctx) {
-    if (isPartElectricallyIsolated(part, ctx.parts, ctx.electricalNodeId!)) return; // same reasoning
+    if (isPartFloatingFromReference(part, ctx.netGround, ctx.netPower, ctx.pinRoot)) return;
 
     for (const group of groupSharedChannels(part, ctx).values()) {
       const winner = lowestVfWinner(group);

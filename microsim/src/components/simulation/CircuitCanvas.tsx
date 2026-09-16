@@ -63,6 +63,11 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
   const togglePushbutton = useCircuitStore((s) => s.togglePushbutton);
   const toggleSwitch = useCircuitStore((s) => s.toggleSwitch);
   const shiftWireWaypoints = useCircuitStore((s) => s.shiftWireWaypoints);
+  
+  const rotatePart = useCircuitStore((s) => s.rotatePart);
+  const duplicatePart = useCircuitStore((s) => s.duplicatePart); 
+  const undo = useCircuitStore((s) => s.undo);     
+  const redo = useCircuitStore((s) => s.redo);       
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
@@ -88,12 +93,41 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
 
       if (isTyping) return;
 
-      if (!isSimulating && (e.key === "Delete" || e.key === "Backspace") && selectedPartId) deletePart(selectedPartId);
+      if (!isSimulating && (e.key === "Delete" || e.key === "Backspace") && selectedPartId) {
+        deletePart(selectedPartId);
+        return;
+      }
+
+      if (!isSimulating && !pendingWireStart && selectedPartId && (e.key === "r" || e.key === "R")) {
+        rotatePart(selectedPartId);
+        return;
+      }
+
+      if (!isSimulating && !pendingWireStart && selectedPartId && (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        duplicatePart(selectedPartId);
+        return;
+      }
+
+      // Undo / redo -- Ctrl+Z (Cmd+Z on Mac) undoes, Ctrl+Shift+Z redoes.
+      // Not gated on selectedPartId -- these act on the whole circuit,
+      // not the current selection. The store itself clears selection and
+      // any pending wire draft as part of undo/redo, so no extra guard
+      // against pendingWireStart is needed here.
+      if (!isSimulating && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPartId, deletePart, pendingWireStart, cancelWire, isSimulating]);
+  }, [selectedPartId, deletePart, pendingWireStart, cancelWire, isSimulating, rotatePart, duplicatePart, undo, redo]);
 
   useEffect(() => {
     if (isSimulating && pendingWireStart) cancelWire();
@@ -220,21 +254,18 @@ export function CircuitCanvas({ zoomLevel, panOffset, setPanOffset, isSimulating
         const dy = snappedY - draggedPart.y;
 
         if (dx !== 0 || dy !== 0) {
-          shiftWireWaypoints(drag.partId, dx, dy);
+          shiftWireWaypoints(drag.partId, dx, dy, drag.partId);
 
-          // carry every rider along by the identical delta -- their
-          // offset relative to the breadboard never changes, so they stay
-          // seated on the exact same holes no matter how far the breadboard travels.
           for (const riderId of drag.riderPartIds) {
             const rider = parts.find((p) => p.id === riderId);
             if (!rider) continue;
-            movePart(riderId, rider.x + dx, rider.y + dy);
-            shiftWireWaypoints(riderId, dx, dy);
+            movePart(riderId, rider.x + dx, rider.y + dy, drag.partId);
+            shiftWireWaypoints(riderId, dx, dy, drag.partId);          
           }
         }
       }
 
-      movePart(drag.partId, snappedX, snappedY);
+      movePart(drag.partId, snappedX, snappedY, drag.partId);
     }
   }
 

@@ -5,13 +5,8 @@ import type { ElectricalGraph } from "../solver/electricalGraph";
 import type { ResistiveBranch, VoltageSourceBranch, CircuitSolution } from "../solver/electricalTypes";
 import { analyzeConnectivity } from "./connectivity";
 import { FLAG_FAULT_REGISTRY, type Fault } from "./faultTypes";
-import { isPartElectricallyIsolated } from "../solver/isolation";
+import { isPartFloatingFromReference } from "../solver/isolation";
 
-// Beyond this, treat a source's realized current as a direct short rather
-// than a real load. Calibrated well above every model's own destructive
-// threshold (LED's 30mA, a 0.25W/220ohm resistor's ~34mA) so a component
-// that's simply blown gets its own specific fault instead of double-firing
-// this generic one.  
 const SHORT_CIRCUIT_CURRENT_AMPS = 1.0;
 const SOURCE_VOLTAGE_CONFLICT_TOLERANCE_V = 0.1;
 
@@ -31,7 +26,7 @@ function detectFlagFaults(parts: PartInstance[], hasFlag: (flag: string, partId:
           severity: definition.severity,
           partIds: [part.id],
           destructive: definition.destructive,
-          message: definition.message(part, hasFlag), // <-- was definition.message(part)
+          message: definition.message(part, hasFlag),
         });
       }
     }
@@ -47,10 +42,6 @@ function detectElectricalFaults(sources: VoltageSourceBranch[], solution: Circui
     for (let j = i + 1; j < sources.length; j++) {
       const a = sources[i];
       const b = sources[j];
-      // A component's own junction-drop source isn't a competing power
-      // supply -- when it lands on the same two nodes as a real source at
-      // a different voltage, that's the junction being overdriven, not
-      // two supplies disagreeing.
       if (a.isJunctionDrop || b.isJunctionDrop) continue;
 
       const samePair =
@@ -73,10 +64,6 @@ function detectElectricalFaults(sources: VoltageSourceBranch[], solution: Circui
 
   for (const source of sources) {
     if (explainedSourceIds.has(source.id)) continue;
-    // Same reasoning -- a diode/LED junction driven hard by a supply with
-    // no current-limiting resistor already has its own dedicated
-    // overcurrent fault (ledBlown / rgbBlown). Reporting a second, generic
-    // "short circuit near led:xxx" on top of that is just noise.
     if (source.isJunctionDrop) continue;
 
     const current = Math.abs(solution.sourceCurrent(source.id));
@@ -94,12 +81,14 @@ function detectElectricalFaults(sources: VoltageSourceBranch[], solution: Circui
   return faults;
 }
 
-
 function detectTopologyFaults(
   parts: PartInstance[],
   graph: ElectricalGraph,
   branches: ResistiveBranch[],
-  sources: VoltageSourceBranch[]
+  sources: VoltageSourceBranch[],
+  netGround: Set<string>,
+  netPower: Set<string>,
+  pinRoot: (partId: string, pinId: string) => string
 ): Fault[] {
   const faults: Fault[] = [];
   const { reachableFromGround } = analyzeConnectivity(branches, sources, graph.groundNodeId);
@@ -122,9 +111,14 @@ function detectTopologyFaults(
     const def = partDefinitions[part.type];
     if (!def) continue;
 
+    // Parts touching neither a power nor a ground reference anywhere in
+    // their connected group are just parked on the canvas (or resting in
+    // an unused breadboard column) -- never wired with intent, so flagging
+    // them as "floating" is just noise. This uses the same reference-based
+    // check as the solver's own guard, so the banner and the fix agree.
+    if (isPartFloatingFromReference(part, netGround, netPower, pinRoot)) continue;
+
     const pinNodes = def.pins.map((pin) => graph.nodeId(part.id, pin.id));
-    if (isPartElectricallyIsolated(part, parts, graph.nodeId)) continue; // bare, unwired part -- not worth flagging
-    
     const anyReachable = pinNodes.some((node) => reachableFromGround.has(node));
     if (!anyReachable) {
       faults.push({
@@ -140,16 +134,6 @@ function detectTopologyFaults(
   return faults;
 }
 
-/**
- * Bus contention: two OUTPUT drivers forcing the same net HIGH and LOW at
- * once. Uses the existing netDrivenHigh/netDrivenLow sets populated by
- * each model's drive()/driveAfterPower() hook -- no new detection
- * machinery, just checking for the overlap.
- *
- * NOTE: netDrivenHigh/netDrivenLow are keyed by union-find root, not part
- * id, so this can't attribute specific parts yet without extra bookkeeping
- * in the drive phase. Left as a whole-circuit warning for now.
- */
 function detectDigitalDriverConflicts(netDrivenHigh: Set<string>, netDrivenLow: Set<string>): Fault[] {
   for (const root of netDrivenHigh) {
     if (netDrivenLow.has(root)) {
@@ -175,12 +159,15 @@ export function detectFaults(
   solution: CircuitSolution,
   netDrivenHigh: Set<string>,
   netDrivenLow: Set<string>,
+  netGround: Set<string>,
+  netPower: Set<string>,
+  pinRoot: (partId: string, pinId: string) => string,
   hasFlag: (flag: string, partId: string) => boolean
 ): Fault[] {
   return [
     ...detectFlagFaults(parts, hasFlag),
     ...detectElectricalFaults(sources, solution),
-    ...detectTopologyFaults(parts, graph, branches, sources),
+    ...detectTopologyFaults(parts, graph, branches, sources, netGround, netPower, pinRoot),
     ...detectDigitalDriverConflicts(netDrivenHigh, netDrivenLow),
   ];
 }
