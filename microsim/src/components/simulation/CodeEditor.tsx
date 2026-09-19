@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import type { Monaco } from "@monaco-editor/react";
 import { useCircuitStore } from "../../store/circuitStore";
 
 export function CodeEditor() {
@@ -16,12 +17,30 @@ export function CodeEditor() {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [consoleLog]);
 
+  // Define custom theme colors for Monaco
+  const handleEditorWillMount = (monaco: Monaco) => {
+    monaco.editor.defineTheme("microsim-dark", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [],
+      colors: {
+        "editor.background": "#131313", // Change this to your exact HEX color
+        "editorGutter.background": "#131313",
+        "editor.lineHighlightBackground": "#191919",
+      },
+    });
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] border-r border-[#333]">
-      <div className="flex items-center justify-between px-3 py-2 bg-[#252526] border-b border-[#333]">
+    <div className="flex flex-col h-full">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#1e1e1e] border-b border-[#191919]">
         <span className="text-xs font-mono text-zinc-400">sketch.ino</span>
         {running ? (
-          <button onClick={stopSimulation} className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded transition-colors">
+          <button
+            onClick={stopSimulation}
+            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded transition-colors"
+          >
             ■ Stop
           </button>
         ) : (
@@ -34,12 +53,13 @@ export function CodeEditor() {
         )}
       </div>
 
-      {/* Syntax-Highlighted Code Editor */}
+      {/* Code Editor */}
       <div className="flex-1 relative min-h-0">
         <Editor
           height="100%"
           defaultLanguage="cpp"
-          theme="vs-dark"
+          theme="microsim-dark" // Use custom defined theme
+          beforeMount={handleEditorWillMount}
           value={code}
           onChange={(value) => setCode(value || "")}
           options={{
@@ -55,11 +75,12 @@ export function CodeEditor() {
         />
       </div>
 
-      <div className="h-40 border-t border-[#333] flex flex-col">
-        <div className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-zinc-400 bg-[#252526]">
+      {/* Console Section */}
+      <div className="h-40 border-t bg-[#1e1e1e] flex flex-col">
+        <div className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-zinc-400">
           Console
         </div>
-        <div className="flex-1 overflow-y-auto p-3 font-mono text-xs text-emerald-300 bg-[#1e1e1e] whitespace-pre-wrap">
+        <div className="flex-1 overflow-y-auto p-3 font-mono text-xs text-emerald-300 bg-[#131313] whitespace-pre-wrap">
           {consoleLog.length === 0 ? (
             <div className="text-zinc-500">Press Run to start the simulation.</div>
           ) : (

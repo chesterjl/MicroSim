@@ -8,7 +8,7 @@ import { COMMUNITY_PROJECTS, type Project } from "../utils/data";
 import ProjectCard from "../components/projects/ProjectCard";
 
 const CURRENT_USER_ID = 101;
-
+  
 export default function Community() {
   const navigate = useNavigate();
 

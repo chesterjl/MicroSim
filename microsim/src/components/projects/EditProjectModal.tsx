@@ -45,7 +45,7 @@ export default function EditProjectModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
       <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-zinc-900 border border-zinc-800/90 p-4 sm:p-6 shadow-2xl overflow-y-auto">
-        
+          
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-zinc-800 shrink-0">
           <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">

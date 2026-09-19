@@ -9,6 +9,7 @@ const FAULT_LABELS: Record<FaultType, string> = {
   "no-ground-reference": "No Ground Reference",
   "invalid-connection": "Invalid Connection",
   "overloaded-component": "Overloaded Component",
+  "relay-contacts-welded": "Relay Contacts Welded"
 };
 
 interface FaultBannerProps {

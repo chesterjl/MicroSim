@@ -13,7 +13,7 @@ interface BatteryPartProps {
 }
 
 export function BatteryPart({ part, selected, pinStates, onPinClick }: BatteryPartProps) {
-  const voltage = (part.properties?.voltage as number) ?? 9;
+  const voltage = 9;
   const def = partDefinitions.battery;
 
   const bodyLeft = -4.5 * GRID; // orange contact cap starts here
@@ -74,7 +74,7 @@ export function BatteryPart({ part, selected, pinStates, onPinClick }: BatteryPa
         const isPositive = pin.id === "positive";
         const pinX = pin.x * GRID;
         const pinY = pin.y * GRID;
-
+        
         return (
           <g key={pin.id}>
             <PinLeg x1={pinX}y1={pinY} x2={connectorLeft} y2={pinY} color={isPositive ? "#dc2626" : "#2b2b2b"} width={2.5}/>

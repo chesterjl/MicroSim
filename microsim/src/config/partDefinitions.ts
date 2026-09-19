@@ -582,6 +582,112 @@ export const partDefinitions: Record<string, PartDefinition> = {
     },
   },
 
+  inductor: {
+    type: "inductor",
+    displayName: "Inductor",
+    widthUnits: 10,
+    heightUnits: 10,
+    pins: [
+      { id: "pin1", label: "1", x: -1.5, y: 4, type: "passive" },
+      { id: "pin2", label: "2", x: 1.5, y: 4, type: "passive" },
+    ],
+    defaultProperties: {
+      inductanceValue: 100,
+      inductanceUnit: "µH",
+      ratedCurrentAmps: 1,
+      dcResistanceOhms: 2,
+      storedCurrent: 0,
+    },
+  },
+
+  diode: {
+    type: "diode",
+    displayName: "Diode",
+    widthUnits: 6,
+    heightUnits: 2,
+    pins: [
+      { id: "anode", label: "A", x: -3, y: 0, type: "passive" },
+      { id: "cathode", label: "K", x: 3, y: 0, type: "passive" },
+    ],
+    defaultProperties: {
+      forwardVoltageDrop: 0.7,
+      maxReverseVoltage: 50,
+      maxForwardCurrentAmps: 1,
+    },
+  },
+
+  "zener-diode": {
+    type: "zener-diode",
+    displayName: "Zener Diode",
+    widthUnits: 6,
+    heightUnits: 2,
+    pins: [
+      { id: "anode", label: "A", x: -3, y: 0, type: "passive" },
+      { id: "cathode", label: "K", x: 3, y: 0, type: "passive" },
+    ],
+    defaultProperties: {
+      forwardVoltageDrop: 0.7,
+      zenerVoltage: 5.1,
+      maxPowerWatts: 0.5,
+      dynamicResistanceOhms: 8,
+      lastReverseVoltage: 0,
+    },
+  },
+  
+  "transistor-npn": {
+    type: "transistor-npn",
+    displayName: "Transistor (NPN)",
+    widthUnits: 5,
+    heightUnits: 6,
+    pins: [
+      { id: "collector", label: "C", x: -1, y: 2, type: "passive" },
+      { id: "base", label: "B", x: 0, y: 2, type: "digital" },
+      { id: "emitter", label: "E", x: 1, y: 2, type: "passive" },
+    ],
+    defaultProperties: {
+      maxCollectorCurrentAmps: 0.5,
+      maxCollectorEmitterVoltage: 40,
+      saturationOhms: 5,
+    },
+  },
+
+  "power-supply": {
+    type: "power-supply",
+    displayName: "DC Power Supply",
+    widthUnits: 28,
+    heightUnits: 15,
+    pins: [
+      { id: "negative", label: "−", x: 7, y: 5, type: "ground" },
+      { id: "positive", label: "+", x: 10, y: 5, type: "power" },
+    ],
+    defaultProperties: {
+      voltageSetpoint: 5,
+      currentLimitAmps: 1,
+      poweredOn: false,
+      controlMode: "voltage",
+      measuredCurrentAmps: 0,
+    },
+  },
+
+  mosfet: {
+    type: "mosfet",
+    displayName: "MOSFET (N-Channel)",
+    widthUnits: 10,
+    heightUnits: 14,
+    pins: [
+      { id: "gate", label: "G", x: -2, y: 7, type: "digital" },
+      { id: "drain", label: "D", x: 0, y: 7, type: "passive" },
+      { id: "source", label: "S", x: 2, y: 7, type: "passive" },
+    ],
+    defaultProperties: {
+      gateThresholdVoltage: 2,
+      rdsOnOhms: 0.05,
+      maxDrainCurrentAmps: 10,
+      maxDrainSourceVoltage: 55,
+      maxGateSourceVoltage: 20,
+    },
+  },
+  
 };
 
 export function createPartInstance(type: string, x: number, y: number, idSuffix: string) {

@@ -1,6 +1,5 @@
 import { useCircuitStore } from "../../store/circuitStore";
 import type { PartInstance } from "../../types/types";
-import { BatteryModal } from "../../parts/battery/BatteryModal";
 import { CapacitorModal } from "../../parts/capacitor/CapacitorModal";
 import { LedModal } from "../../parts/led/LedModal";
 import { PotentiometerModal } from "../../parts/potentiometer/PotentiometerModal";
@@ -9,8 +8,11 @@ import { ResistorModal } from "../../parts/resistor/ResistorModal";
 import { DhtModal } from "../../parts/dht/DhtModal";
 import { UltrasonicHcsr04Modal } from "../../parts/hcSr04/Hcsr04Modal";
 import { SevenSegmentModal } from "../../parts/sevenSegment/SevenSegmentModal";
+import { InductorModal } from "../../parts/inductor/InductorModal";
+import { TransistorModal } from "../../parts/transistor/TransistoNpnModal";
+import { ZenerDiodeModal } from "../../parts/diode/ZenerDiodeModal";
 
-export const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "battery", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized"];
+export const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized", "zener-diode", "inductor", "transistor-npn"];
 
 interface Props {
   part: PartInstance | null;
@@ -27,8 +29,6 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
       return <LedModal part={part} onClose={onClose} />;
     case "resistor":
       return <ResistorModal part={part} onClose={onClose} />;
-    case "battery":
-      return <BatteryModal part={part} onClose={onClose} />;
     case "potentiometer":
       return <PotentiometerModal part={part} onClose={onClose} />;
     case "ultrasonic-hcsr04":
@@ -43,6 +43,13 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
     case "capacitor-polarized":
     case "capacitor-nonpolarized":
       return <CapacitorModal part={part} onClose={onClose} />;
+    case "inductor":                                                 
+      return <InductorModal part={part} onClose={onClose} />;
+    case "zener-diode":                                                 
+      return <ZenerDiodeModal part={part} onClose={onClose} />;
+    case "transistor-npn":                                                 
+      return <TransistorModal part={part} onClose={onClose} />;
+    
     default:
       return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">

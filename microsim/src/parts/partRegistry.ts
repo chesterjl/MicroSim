@@ -30,6 +30,12 @@ import { PhotoresistorPart } from "./photoresistor/Photoresistor.tsx";
 import { SevenSegmentPart } from "./sevenSegment/SevenSegment.tsx";
 import { RelayPart } from "./relay/Relay.tsx";
 import { DcGearMotorPart } from "./dcGearMotor/DcGearMotor.tsx";
+import { InductorPart } from "./inductor/Inductor.tsx";
+import { DiodePart } from "./diode/Diode.tsx";
+import { TransistorNpnPart } from "./transistor/TransistorNpn.tsx";
+import { PowerSupplyPart} from './powerSupply/PowerSupply.tsx';
+import { MosfetPart} from './mosfet/Mosfet.tsx';
+
 import type { Netlist, NetState } from "../engine/netlist.ts";
 
 export interface PartComponentProps {
@@ -74,4 +80,10 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   dht22: Dht22Part,
   "capacitor-polarized": CapacitorPolarizedPart,
   "capacitor-nonpolarized": CapacitorNonPolarizedPart,
+  inductor: InductorPart, 
+  diode: DiodePart, 
+  "transistor-npn": TransistorNpnPart,
+  "power-supply": PowerSupplyPart,
+  "zener-diode": DiodePart,
+  "mosfet": MosfetPart
 };

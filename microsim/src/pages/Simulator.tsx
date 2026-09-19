@@ -70,17 +70,6 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
 
       {/* Main Responsive Workspace */}
       <div className="flex flex-1 min-h-0 relative">
-        {/* Code Editor View */}
-        {(viewMode === "code" || viewMode === "split") && (
-          <div className={`${
-                viewMode === "split"
-                  ? "hidden md:block md:w-[38%] md:min-w-[340px]"
-                  : "w-full"
-              } h-full border-r border-[#27272a] `}>
-            <CodeEditor />
-          </div>
-        )}
-
         {(viewMode === "canvas" || viewMode === "split") && (
           <div className={`${
             viewMode === "split" ?
@@ -92,7 +81,7 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
                 <PartsPalette onAddPart={handleAddPart} />
               </div>
             )}
-
+              
             <div ref={canvasContainerRef} className="flex-1 min-h-0 w-full h-full relative overflow-hidden">
               <CircuitCanvas
                 zoomLevel={zoomLevel}
@@ -105,6 +94,18 @@ export default function Simulator({ onBackToHome }: { onBackToHome: () => void }
             </div>
           </div>
         )}
+
+        {/* Code Editor View */}
+        {(viewMode === "code" || viewMode === "split") && (
+          <div className={`${
+                viewMode === "split"
+                  ? "hidden md:block md:w-[38%] md:min-w-[340px]"
+                  : "w-full"
+              } h-full border-r border-[#27272a] `}>
+            <CodeEditor />
+          </div>
+        )}
+
       </div>
 
       <ComponentPropertiesModal

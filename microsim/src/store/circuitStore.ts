@@ -30,15 +30,15 @@ interface CircuitState {
   buzzerStates: Record<string, BuzzerState>;
   servoAngles: Record<string, number>;
 
-  // Undo/redo -- only ever holds {parts, wires} snapshots. See the
-  // comment above `recordHistory` in the store body for why.
+  // Undo/redo only ever holds {parts, wires} snapshots
   undoStack: HistorySnapshot[];
   redoStack: HistorySnapshot[];
   undo: () => void;
   redo: () => void;
 
   addPart: (type: string, x: number, y: number) => void;
-  // `historyKey` lets a caller mark a run of movePart calls (e.g. every
+
+  // historyKey lets a caller mark a run of movePart calls (e.g. every
   // mousemove tick of one drag) as "the same logical edit" so they
   // coalesce into a single undo step. Defaults to `id` if omitted.
   movePart: (id: string, x: number, y: number, historyKey?: string) => void;
@@ -138,13 +138,12 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
     },
   });
 
-  // --- Undo/redo bookkeeping ---------------------------------------------
-  // Only `parts` and `wires` are ever snapshotted -- simulation runtime
-  // state is intentionally excluded (see CircuitState comment above).
+  // Undo/redo bookkeeping
+  // Only parts and wires are ever snapshotted - simulation runtime state is intentionally excluded.
   //
-  // `lastHistoryKey`/`lastHistoryTime` live in this closure (created once,
+  // lastHistoryKey / lastHistoryTime live in this closure (created once,
   // when the store is built) rather than in reactive state, same pattern
-  // as `activeAnimationId` used to live outside the old store -- they're
+  // as `activeAnimationId` used to live outside the old store - they're
   // bookkeeping for recordHistory, not UI-facing state.
   const MAX_HISTORY = 50;
   const HISTORY_COALESCE_MS = 400;
@@ -153,13 +152,13 @@ export const useCircuitStore = create<CircuitState>((set, get) => {
 
   // Call BEFORE mutating parts/wires. Pass `null` for a discrete action
   // (always pushes a fresh snapshot). Pass a stable key for a continuous
-  // action (drag, slider) -- repeated calls with the same key inside the
+  // action (drag, slider) - repeated calls with the same key inside the
   // coalesce window collapse into the one snapshot taken at the start of
   // that gesture, so undo reverts the whole gesture in one step.
   function recordHistory(historyKey: string | null) {
     const now = Date.now();
     if (historyKey !== null && historyKey === lastHistoryKey && now - lastHistoryTime < HISTORY_COALESCE_MS) {
-      lastHistoryTime = now; // still the same gesture -- extend the window
+      lastHistoryTime = now; // still the same gesture - extend the window
       return;
     }
     lastHistoryKey = historyKey;
