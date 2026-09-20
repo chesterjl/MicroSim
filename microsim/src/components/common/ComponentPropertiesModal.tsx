@@ -11,8 +11,9 @@ import { SevenSegmentModal } from "../../parts/sevenSegment/SevenSegmentModal";
 import { InductorModal } from "../../parts/inductor/InductorModal";
 import { TransistorModal } from "../../parts/transistor/TransistoNpnModal";
 import { ZenerDiodeModal } from "../../parts/diode/ZenerDiodeModal";
+import { CurrentSourceModal } from "../../parts/currentSource/CurrentSourceModal";
 
-export const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized", "zener-diode", "inductor", "transistor-npn"];
+export const HAS_MODAL_PROPERTIES_PART = ["led", "resistor", "potentiometer", "ultrasonic-hcsr04", "photoresistor", "seven-segment", "dht11", "dht22", "capacitor-polarized", "capacitor-nonpolarized", "zener-diode", "inductor", "transistor-npn", "current-source"];
 
 interface Props {
   part: PartInstance | null;
@@ -49,6 +50,8 @@ export function ComponentPropertiesModal({ part, onClose }: Props) {
       return <ZenerDiodeModal part={part} onClose={onClose} />;
     case "transistor-npn":                                                 
       return <TransistorModal part={part} onClose={onClose} />;
+    case "current-source":                                                 
+      return <CurrentSourceModal part={part} onClose={onClose} />;
     
     default:
       return (

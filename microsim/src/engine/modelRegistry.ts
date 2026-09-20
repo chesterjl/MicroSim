@@ -3,6 +3,7 @@ import { arduinoUnoModel } from "../parts/arduino/arduinoUno";
 import { batteryModel } from "../parts/battery/battery";
 import { breadboardModel } from "../parts/breadboard/breadboard";
 import { capacitorModel } from "../parts/capacitor/capacitor";
+import { currentSourceModel } from "../parts/currentSource/currentSource";
 import { dcGearMotorModel } from "../parts/dcGearMotor/dcGearMotor";
 import { diodeModel } from "../parts/diode/diode";
 import { zenerDiodeModel } from "../parts/diode/zenerDiode";
@@ -60,6 +61,7 @@ export const componentModelRegistry: Record<string, ComponentModel> = {
     "power-supply": powerSupplyModel,
     "zener-diode": zenerDiodeModel,
     "mosfet": mosfetModel,
+    "current-source": currentSourceModel,
   };
 
 export function getComponentModel(type: string): ComponentModel | undefined {

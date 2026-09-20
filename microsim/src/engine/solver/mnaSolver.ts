@@ -1,40 +1,41 @@
 // engine/solver/mnaSolver.ts
-import type { ResistiveBranch, VoltageSourceBranch, CircuitSolution } from "./electricalTypes";
+import type { ResistiveBranch, VoltageSourceBranch, CurrentSourceBranch, CircuitSolution } from "./electricalTypes";
 
 const DEFAULT_SOURCE_SERIES_OHMS = 1;
+const DEFAULT_CURRENT_SOURCE_COMPLIANCE_OHMS = 10_000_000; // "GMIN"-style stabilizer -- see CurrentSourceBranch's doc comment
 
 /**
  * Solves a linear resistive network via Modified Nodal Analysis.
  *
- * IMPORTANT: only nodes actually referenced by a resistive branch or a
- * voltage source become solver unknowns. electricalGraph.ts pre-assigns a
- * node id to every pin of every part on the canvas (so branches CAN
- * reference any of them), but most pins on a typical part -- e.g. an
- * Arduino's d0-d13/a0-a5/aref/reset/vin when nothing's wired to them --
- * never get touched by anything electrical. Sizing the matrix off the raw
- * node count and including every one of those untouched pins as a full
- * unknown gives that row/column an all-zero entry -- and a single
- * all-zero row makes the WHOLE matrix singular, not just that one node.
- * That silently zeroes every current and voltage in the circuit, even
- * for parts that were wired correctly. Filtering to only touched nodes
- * fixes this.
+ * IMPORTANT: only nodes actually referenced by a resistive branch, a
+ * voltage source, or a current source become solver unknowns.
+ * electricalGraph.ts pre-assigns a node id to every pin of every part on
+ * the canvas, but most untouched pins never get touched by anything
+ * electrical. Sizing the matrix off the raw node count and including
+ * those untouched pins as full unknowns gives an all-zero row, which
+ * makes the WHOLE matrix singular. Filtering to only touched nodes fixes
+ * this.
  *
  * Every voltage source gets its own internal node, bridged to nodeA by
  * its (real or defaulted) series resistance -- a Thevenin-style source
- * model rather than a bare ideal source, which also keeps two sources
- * landing on the same node pair (e.g. an LED wired straight across a
- * battery with no resistor) solvable instead of singular.
+ * model rather than a bare ideal source.
+ *
+ * CURRENT SOURCES (Phase 8): an ideal current source doesn't need its own
+ * unknown the way a voltage source does -- the current is already known,
+ * so it only contributes an RHS injection at its two nodes (see the stamp
+ * below). It DOES still need a parallel compliance resistor (~10MΩ by
+ * default) so the matrix never goes singular if the source's two nodes
+ * have no other path between them -- the same role a voltage source's
+ * series resistance plays, just wired in parallel instead of in series.
  *
  * SCOPE: every source is still assumed referenced to the single ground
- * node (node 0) -- see electricalGraph.ts. A source floating between two
- * non-ground nodes, or multiple independent sources with no common
- * ground, aren't handled -- not a real limitation for the current
- * component library (one battery, one Arduino, always ground-referenced).
+ * node (node 0) -- see electricalGraph.ts.
  */
 export function solveCircuit(
   _nodeCount: number,
   branches: ResistiveBranch[],
-  sources: VoltageSourceBranch[]
+  sources: VoltageSourceBranch[],
+  currentSources: CurrentSourceBranch[] = []
 ): CircuitSolution {
   // --- Step 1: find only the real (non-ground) nodes actually touched by
   // something electrical. Everything else is dropped from the matrix
@@ -52,13 +53,17 @@ export function solveCircuit(
     noteTouched(s.nodeA);
     noteTouched(s.nodeB);
   }
+  for (const cs of currentSources) {
+    noteTouched(cs.nodeA);
+    noteTouched(cs.nodeB);
+  }
 
   const realNodeList = Array.from(touchedRealNodes);
   const realNodeIndex = new Map<number, number>();
   realNodeList.forEach((node, i) => realNodeIndex.set(node, i));
 
   const R = realNodeList.length; // touched real (non-ground) node unknowns
-  const S = sources.length; // one internal node + one branch-current unknown per source
+  const S = sources.length; // one internal node + one branch-current unknown per VOLTAGE source only
   const size = R + 2 * S;
 
   if (size <= 0) {
@@ -66,8 +71,9 @@ export function solveCircuit(
   }
 
   // Row/col layout: [0 .. R)      = touched real nodes
-  //                 [R .. R+S)    = each source's internal node
-  //                 [R+S .. R+2S) = each source's branch-current unknown
+  //                 [R .. R+S)    = each voltage source's internal node
+  //                 [R+S .. R+2S) = each voltage source's branch-current unknown
+  // Current sources add NO rows/columns of their own -- see file header.
   const realRow = (node: number): number | null => {
     const i = realNodeIndex.get(node);
     return i === undefined ? null : i; // null means "ground or untouched -- skip"
@@ -94,7 +100,38 @@ export function solveCircuit(
     }
   }
 
-  // --- Each source: series resistor (internalNode <-> nodeA) stamped via
+  // --- Current sources: compliance-resistor conductance stamp (KCL, same
+  // shape as a normal resistive branch) plus the RHS current injection.
+  // Split into two loops purely for readability -- order doesn't matter
+  // since both write into disjoint parts of the matrix (off-diagonal
+  // conductances vs. the RHS column). ---
+  for (const cs of currentSources) {
+    const complianceOhms = Math.max(cs.complianceOhms ?? DEFAULT_CURRENT_SOURCE_COMPLIANCE_OHMS, 1);
+    const g = 1 / complianceOhms;
+    const rowA = realRow(cs.nodeA);
+    const rowB = realRow(cs.nodeB);
+
+    if (rowA !== null) A[rowA][rowA] += g;
+    if (rowB !== null) A[rowB][rowB] += g;
+    if (rowA !== null && rowB !== null) {
+      A[rowA][rowB] -= g;
+      A[rowB][rowA] -= g;
+    }
+  }
+
+  for (const cs of currentSources) {
+    const rowA = realRow(cs.nodeA);
+    const rowB = realRow(cs.nodeB);
+    // `amps` flows OUT of nodeA into the external circuit and back into
+    // the source at nodeB. In nodal-analysis terms: current is injected
+    // INTO node A (RHS += amps) and drawn OUT of node B (RHS -= amps).
+    // Verified against the simplest case -- a current source into a
+    // single resistor R to ground gives V = I*R, exactly as expected.
+    if (rowA !== null) A[rowA][size] += cs.amps;
+    if (rowB !== null) A[rowB][size] -= cs.amps;
+  }
+
+  // --- Each voltage source: series resistor (internalNode <-> nodeA) stamped via
   // KCL, plus the ideal-source KVL row/column (internalNode <-> nodeB). ---
   sources.forEach((source, i) => {
     const internal = internalRow(i);

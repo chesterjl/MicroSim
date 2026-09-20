@@ -687,6 +687,21 @@ export const partDefinitions: Record<string, PartDefinition> = {
       maxGateSourceVoltage: 20,
     },
   },
+
+  "current-source": {
+    type: "current-source",
+    displayName: "DC Current Source",
+    widthUnits: 6,
+    heightUnits: 4,
+    pins: [
+      { id: "negative", label: "−", x: -3, y: 0, type: "passive" },
+      { id: "positive", label: "+", x: 3, y: 0, type: "passive" },
+    ],
+    defaultProperties: {
+      currentAmps: 0.02,
+      maxComplianceVoltage: 30,
+    },
+  },
   
 };
 

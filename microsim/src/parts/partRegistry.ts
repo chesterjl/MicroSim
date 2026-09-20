@@ -35,6 +35,7 @@ import { DiodePart } from "./diode/Diode.tsx";
 import { TransistorNpnPart } from "./transistor/TransistorNpn.tsx";
 import { PowerSupplyPart} from './powerSupply/PowerSupply.tsx';
 import { MosfetPart} from './mosfet/Mosfet.tsx';
+import { CurrentSourcePart } from './currentSource/CurrentSource.tsx';
 
 import type { Netlist, NetState } from "../engine/netlist.ts";
 
@@ -85,5 +86,6 @@ export const partComponentRegistry: Record<string, React.FC<PartComponentProps>>
   "transistor-npn": TransistorNpnPart,
   "power-supply": PowerSupplyPart,
   "zener-diode": DiodePart,
-  "mosfet": MosfetPart
+  "mosfet": MosfetPart,
+  "current-source": CurrentSourcePart
 };

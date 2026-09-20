@@ -7,7 +7,7 @@ import { getResolvedPins } from "./physics/geometry";
 import type { OhmsLawReading } from "./physics/ohmsLaw";
 import { UnionFind } from "./unionFind";
 import { BREADBOARD_CONTACT_EPSILON_PX, buildElectricalGraph, type ElectricalGraph } from "./solver/electricalGraph";
-import type { CircuitSolution, ResistiveBranch, VoltageSourceBranch } from "./solver/electricalTypes";
+import type { CircuitSolution, ResistiveBranch, VoltageSourceBranch, CurrentSourceBranch } from "./solver/electricalTypes";
 import { solveCircuit } from "./solver/mnaSolver";
 import { detectFaults } from "./faults/faultDetector";
 import type { Fault } from "./faults/faultTypes";
@@ -100,6 +100,7 @@ export function buildNetlist(
   let faultsRef: Fault[] = [];
   const electricalBranches: ResistiveBranch[] = [];
   const electricalSources: VoltageSourceBranch[] = [];
+  const electricalCurrentSources: CurrentSourceBranch[] = [];
 
   const ctx: SimContext = {
     parts,
@@ -130,6 +131,8 @@ export function buildNetlist(
     electricalNodeId: (partId, pinId) => (electricalGraphRef ? electricalGraphRef.nodeId(partId, pinId) : 0),
     addResistiveBranch: (branch) => electricalBranches.push(branch),
     addVoltageSource: (source) => electricalSources.push(source),
+    addCurrentSource: (source) => electricalCurrentSources.push(source),
+
     getNodeVoltage: (partId, pinId) =>
       circuitSolution && electricalGraphRef ? circuitSolution.nodeVoltage(electricalGraphRef.nodeId(partId, pinId)) : 0,
     getSourceCurrent: (sourceId) => (circuitSolution ? circuitSolution.sourceCurrent(sourceId) : 0),
@@ -232,8 +235,8 @@ export function buildNetlist(
     getComponentModel(part.type)?.contributeElectricalBranches?.(part, ctx);
   }
 
-  circuitSolution = solveCircuit(electricalGraphRef.nodeCount, electricalBranches, electricalSources);
-
+  circuitSolution = solveCircuit(electricalGraphRef.nodeCount, electricalBranches, electricalSources, electricalCurrentSources);
+  
   function isPartPowered(partId: string): boolean {
     const vccRoot = uf.find(pinKey(partId, "vcc"));
     const gndRoot = uf.find(pinKey(partId, "gnd"));

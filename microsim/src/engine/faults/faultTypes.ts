@@ -285,4 +285,12 @@ export const FLAG_FAULT_REGISTRY: Record<string, FlagFaultDefinition> = {
       `The gate is now permanently unusable. Never drive a MOSFET's gate directly from a voltage higher than its Vgs rating.`,
   },
   
+  currentSourceOverCompliance: {
+    type: "invalid-connection",
+    severity: "warning",
+    destructive: false,
+    message: () =>
+      `This current source can't push its set current through the load -- the load's resistance is too high (or the loop is open), ` +
+      `so the source would need to develop more voltage than it's rated for. Reduce the load resistance, or check for a broken connection.`,
+  },
 };

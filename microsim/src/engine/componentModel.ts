@@ -1,7 +1,7 @@
 import type { PartInstance, Wire } from "../types/types";
 import type { NetState } from "./netlist";
 import type { OhmsLawReading } from "./physics/ohmsLaw";
-import type { ResistiveBranch, VoltageSourceBranch } from "./solver/electricalTypes";
+import type { ResistiveBranch, VoltageSourceBranch, CurrentSourceBranch } from "./solver/electricalTypes";
 
 // What an Arduino/digital pin looks like
 export interface DigitalPinState {
@@ -63,6 +63,7 @@ export interface SimContext {
   electricalNodeId: ((partId: string, pinId: string) => number) | null;
   addResistiveBranch(branch: ResistiveBranch): void; // Registers one resistive (Ohm's-law) branch between two electrical nodes.
   addVoltageSource(source: VoltageSourceBranch): void; // Registers one ideal voltage source - battery, Arduino rail, or (when conducting) an LED's forward-voltage-drop branch.
+  addCurrentSource(source: CurrentSourceBranch): void; // Registers one ideal current source between two electrical nodes -- forces a fixed current regardless of load, the electrical dual of addVoltageSource.
   
   getNodeVoltage(partId: string, pinId: string): number; // Solved node voltage - only meaningful AFTER the MNA solve finishes.
   // Current (amps) through a voltage-source branch, looked up by the `id` passed to `addVoltageSource`. */

@@ -45,7 +45,7 @@ const ICONS = {
   diode: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 16H8" stroke="%23A1A1AA" stroke-width="2.5" stroke-linecap="round"/><path d="M24 16H30" stroke="%23A1A1AA" stroke-width="2.5" stroke-linecap="round"/><rect x="8" y="10" width="16" height="12" rx="3" fill="%23191919"/><rect x="11" y="10" width="3.5" height="12" rx="0.5" fill="%2371717A"/></svg>`,
   powerSupply: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="7" width="27" height="19" rx="2.5" fill="%232D3238" stroke="%231E2227" stroke-width="0.8"/><rect x="3.3" y="7.8" width="25.4" height="17.4" rx="1.8" fill="%23E2E8F0"/><line x1="17.2" y1="7.8" x2="17.2" y2="25.2" stroke="%23CBD5E1" stroke-width="0.5"/><circle cx="8.5" cy="12.5" r="3.3" fill="%23111827" stroke="%23020617" stroke-width="0.35"/><circle cx="8.5" cy="12.5" r="2.6" fill="%231F2937" stroke="%230F172A" stroke-width="0.35"/><circle cx="8.5" cy="12.5" r="1.9" fill="%23F59E0B"/><circle cx="8.5" cy="11.9" r="1.35" fill="%23FFFFFF" opacity="0.18"/><circle cx="8.5" cy="10.9" r="0.38" fill="%23FFFFFF"/><circle cx="14" cy="12.5" r="3.3" fill="%23111827" stroke="%23020617" stroke-width="0.35"/><circle cx="14" cy="12.5" r="2.6" fill="%231F2937" stroke="%230F172A" stroke-width="0.35"/><circle cx="14" cy="12.5" r="1.9" fill="%233B82F6"/><circle cx="14" cy="11.9" r="1.35" fill="%23FFFFFF" opacity="0.18"/><circle cx="14" cy="10.9" r="0.38" fill="%23FFFFFF"/><rect x="7" y="18" width="8.5" height="4.8" rx="1" fill="%230F172A" stroke="%23020617" stroke-width="0.35"/><rect x="7.7" y="18.7" width="7.1" height="3.4" rx="0.7" fill="%231E293B"/><rect x="8" y="19" width="6.5" height="1.55" rx="0.6" fill="%23647548"/><circle cx="11.25" cy="19.75" r="0.45" fill="%230F172A" opacity="0.6"/><rect x="18.4" y="9.3" width="8.4" height="9.2" rx="0.8" fill="%23180505" stroke="%23000000" stroke-width="0.45"/><text x="25.5" y="13.4" text-anchor="end" font-size="3.5" font-weight="800" fill="%23FF2222" font-family="monospace">5.0</text><text x="25.5" y="17" text-anchor="end" font-size="3.1" font-weight="800" fill="%23FF2222" font-family="monospace">0</text><circle cx="20.5" cy="22.2" r="2.1" fill="%23090D16"/><circle cx="20.5" cy="22.2" r="1.25" fill="%23334155"/><circle cx="20.5" cy="22.2" r="0.6" fill="%230F172A"/><circle cx="26" cy="22.2" r="2.1" fill="%237F1D1D"/><circle cx="26" cy="22.2" r="1.25" fill="%23EF4444"/><circle cx="26" cy="22.2" r="0.6" fill="%237F1D1D"/></svg>`,
   mosfet: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="2" width="8" height="7" rx="2" fill="%23A8A8AC" stroke="%236B6B70" stroke-width="1"/><circle cx="16" cy="5.5" r="1.6" fill="%230C0C0E"/><path d="M8 8 Q8 5 11 5 L21 5 Q24 5 24 8 L24 20 L8 20 Z" fill="%230C0C0E" stroke="%23000" stroke-width="1"/><text x="16" y="16" font-size="6" font-weight="800" fill="%23E5E5E5" text-anchor="middle" font-family="sans-serif">N</text><path d="M11 20V27" stroke="%23C9C9C9" stroke-width="2" stroke-linecap="round"/><path d="M16 20V28" stroke="%23C9C9C9" stroke-width="2" stroke-linecap="round"/><path d="M21 20V27" stroke="%23C9C9C9" stroke-width="2" stroke-linecap="round"/></svg>`,
-
+  currentSource: `data:image/svg+xml;utf8,<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 16H8" stroke="%23A1A1AA" stroke-width="2.2" stroke-linecap="round"/><path d="M24 16H30" stroke="%23A1A1AA" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="16" r="9" fill="%2327272A" stroke="%2352525B" stroke-width="1.5"/><line x1="10" y1="16" x2="19" y2="16" stroke="%23FACC15" stroke-width="2" stroke-linecap="round"/><polygon points="19,16 15,12.5 15,19.5" fill="%23FACC15"/></svg>`,
 };
 
 const PART_CATALOG: PartOption[] = [
@@ -64,6 +64,7 @@ const PART_CATALOG: PartOption[] = [
   { type: "transistor-npn", label: "Transistor (NPN)", category: "Basic", icon: ICONS.transistor },
   { type: "power-supply", label: "DC Power Supply", category: "Basic", icon: ICONS.powerSupply },
   { type: "mosfet", label: "MOSFET (N-Channel)", category: "Basic", icon: ICONS.mosfet },
+  { type: "current-source", label: "DC Current Source", category: "Basic", icon: ICONS.currentSource },
   
   { type: "lcd-16x2-i2c", label: "LCD 16x2 (I2C)", category: "Display", icon: ICONS.lcd16x2 },
   { type: "lcd-20x4-i2c", label: "LCD 20x4 (I2C)", category: "Display", icon: ICONS.lcd20x4 },
@@ -107,13 +108,16 @@ export function PartsPalette({ onAddPart }: PartsPaletteProps) {
   const [search, setSearch] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -122,80 +126,150 @@ export function PartsPalette({ onAddPart }: PartsPaletteProps) {
     onAddPart(type);
     setIsOpen(false);
     setSearch("");
-
-    setIsOpen(false);
-    setSearch("");
   };
 
-  
-  const filteredCatalog = PART_CATALOG.filter((part) =>
-    part.label.toLowerCase().includes(search.toLowerCase()) || part.category.toLocaleLowerCase().includes(search.toLowerCase())
+  const filteredCatalog = PART_CATALOG.filter(
+    (part) =>
+      part.label.toLowerCase().includes(search.toLowerCase()) ||
+      part.category.toLowerCase().includes(search.toLowerCase())
   );
 
-  const categories = Array.from(new Set(filteredCatalog.map((p) => p.category)));
+  const categories = Array.from(
+    new Set(filteredCatalog.map((p) => p.category))
+  );
 
   return (
     <div ref={menuRef} className="relative">
-
+      {/* Add Part Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         title="Add a new part"
-        className="w-[38px] h-[38px] rounded-full bg-sky-600 hover:bg-sky-500 text-white border-none flex items-center justify-center shadow-lg transition-colors"
+        aria-label="Add a new part"
+        className={`w-10 h-10 flex items-center justify-center border transition-colors duration-150 cursor-pointer ${
+          isOpen
+            ? "bg-[#252b31] border-sky-500 text-sky-400"
+            : "bg-[#202124] border-[#3a3d42] text-zinc-400 hover:bg-[#292c30] hover:border-[#555a61] hover:text-zinc-100"
+        }`}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Parts Menu */}
       {isOpen && (
-        <div className="absolute top-12 left-0 w-[280px] max-h-[400px] bg-[#1e1e22] border border-[#333338] rounded-lg shadow-2xl z-[1000] flex flex-col overflow-hidden">
-          {/* Search Header */}
-          <div className="p-2.5 border-b border-[#2a2a30]">
-            <input
-              type="text"
-              placeholder="Search parts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-3 py-2 bg-[#121214] border border-[#3a3a40] rounded-md text-white text-xs outline-none focus:border-cyan-500 transition-colors"
-              autoFocus
-            />
+        <div className="absolute top-12 left-0 w-[310px] max-h-[430px] bg-[#1d1e20] border border-[#393c41] shadow-[0_8px_24px_rgba(0,0,0,0.45)] z-[1000] flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="px-3 py-3 border-b border-[#34373c]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[12px] font-semibold text-zinc-200">
+                Components Parts
+              </span>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <svg
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <line x1="16.5" y1="16.5" x2="21" y2="21" />
+              </svg>
+
+              <input
+                type="text"
+                placeholder="Search components"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 bg-[#131416] border border-[#3a3d42] text-[11px] text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-cyan-600 transition-colors"
+                autoFocus
+              />
+            </div>
           </div>
 
-          {/* Catalog List */}
-          <div className="flex-1 overflow-y-auto py-1.5">
+          {/* Component List */}
+          <div
+            className="flex-1 overflow-y-auto px-2 py-2"
+            style={{
+              scrollbarWidth: "thin",
+              scrollbarColor: "#4a4d52 #1d1e20",
+            }}
+          >
             {filteredCatalog.length === 0 ? (
-              <div className="p-5 text-center text-zinc-500 text-xs">No components found</div>
-            ) : (
-              categories.map((cat) => (
-                <div key={cat}>
-                  <div className="px-4 pt-2 pb-1 text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
-                    {cat}
-                  </div>
-                  {filteredCatalog
-                    .filter((item) => item.category === cat)
-                    .map((item) => (
-                      <button
-                        key={item.type}
-                        onClick={() => handleSelectPart(item.type)}
-                        className="w-full px-4 py-2 bg-transparent hover:bg-zinc-800 text-zinc-200 text-xs text-left flex items-center gap-3 transition-colors border-none"
-                      >
-                        <img
-                          src={item.icon}
-                          alt={item.label}
-                          className="w-5 h-5 object-contain shrink-0 pointer-events-none"
-                        />
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
+              <div className="py-10 text-center">
+                <div className="text-zinc-500 text-xs">
+                  No components found
                 </div>
-              ))
+                {search && (
+                  <div className="mt-1 text-[10px] text-zinc-600">
+                    Try a different search
+                  </div>
+                )}
+              </div>
+            ) : (
+              categories.map((category) => {
+                const categoryParts = filteredCatalog.filter(
+                  (item) => item.category === category
+                );
+
+                return (
+                  <div key={category} className="mb-3">
+                    {/* Category Header */}
+                    <div className="flex items-center gap-2 px-1.5 mb-1.5">
+                      <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-500">
+                        {category}
+                      </span>
+                      <div className="flex-1 h-px bg-[#303338]" />
+                    </div>
+
+                    {/* Parts Grid */}
+                    <div className="grid grid-cols-2 gap-1">
+                      {categoryParts.map((item) => (
+                        <button
+                          key={item.type}
+                          onClick={() => handleSelectPart(item.type)}
+                          title={`Add ${item.label}`}
+                          className="group h-[46px] px-2 flex items-center gap-2 text-left bg-transparent border border-transparent hover:bg-[#292c30] hover:border-[#40444a] text-zinc-300 hover:text-white transition-colors duration-100 cursor-pointer"
+                        >
+                          {/* Icon Tile */}
+                          <span className="w-8 h-8 shrink-0 flex items-center justify-center bg-[#151619] border border-[#303338] group-hover:border-[#4b5057] transition-colors">
+                            <img
+                              src={item.icon}
+                              alt=""
+                              className="w-6 h-6 object-contain pointer-events-none"
+                            />
+                          </span>
+
+                          {/* Part Name */}
+                          <span className="min-w-0 truncate text-[11px]">
+                            {item.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
       )}
-
     </div>
   );
 }

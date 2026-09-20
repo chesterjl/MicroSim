@@ -27,3 +27,23 @@ export interface CircuitSolution {
   nodeVoltage(node: number): number;
   sourceCurrent(sourceId: string): number;
 }
+
+/** An ideal current source between two electrical nodes -- forces a FIXED
+ * CURRENT through whatever's connected, regardless of that load's
+ * resistance. The electrical dual of VoltageSourceBranch (which forces a
+ * fixed voltage instead). `nodeA` is the source's "+" terminal: current
+ * flows OUT of nodeA into the external circuit and returns to the source
+ * at nodeB. */
+export interface CurrentSourceBranch {
+  id: string;
+  partId?: string;
+  nodeA: number;
+  nodeB: number;
+  amps: number;
+  /** Very high parallel "compliance" resistance so the matrix never goes
+   * singular even if this source's two nodes have no other path between
+   * them -- the same solvability role every VoltageSourceBranch's
+   * seriesOhms already plays. Defaults to 10MΩ if omitted, high enough
+   * to never meaningfully steal current from a real load. */
+  complianceOhms?: number;
+}
